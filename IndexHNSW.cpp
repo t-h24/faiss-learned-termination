@@ -265,9 +265,19 @@ void IndexHNSW::search (idx_t n, const float *x, idx_t k,
                 dis->set_query(x + i * d);
 
                 maxheap_heapify (k, simi, idxi);
-                hnsw.search(*dis, k, idxi, simi, vt);
-
-                maxheap_reorder (k, simi, idxi);
+                if (search_mode == 0) { // fixed configuration
+                    hnsw.search(*dis, k, idxi, simi, vt);
+                    maxheap_reorder (k, simi, idxi);
+                } else {
+                    hnsw.search_custom(*dis, k, idxi, simi, search_mode, i,
+                        x + i * d, d, pred_max, vt);
+                    // No need to reorder when search_mode = 1 since we
+                    // overwrite the actual search result distances in simi by
+                    // the features that we need as training data.
+                    if (search_mode != 1) { 
+                        maxheap_reorder (k, simi, idxi);
+                    }
+                }                
 
                 if (reconstruct_from_neighbors &&
                     reconstruct_from_neighbors->k_reorder != 0) {
@@ -581,6 +591,22 @@ void IndexHNSW::link_singletons()
 
 }
 
+// Load ground truth nearest neighbor database index
+// for finding ground truth minimum termination condition.
+void IndexHNSW::load_gt(long label) {
+    hnsw.load_gt(label);
+}
+
+// Load the thresholds about when to make predictions.
+// This is related to the choice of intermediate search result features.
+void IndexHNSW::load_thresh(long thresh) {
+    hnsw.load_thresh(thresh);
+}
+
+// Load the prediction model.
+void IndexHNSW::load_model(char *file) {
+    hnsw.load_model(file);
+}
 
 namespace {
 

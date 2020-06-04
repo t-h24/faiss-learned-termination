@@ -70,6 +70,19 @@ struct IndexHNSW : Index {
 
     typedef HNSW::storage_idx_t storage_idx_t;
 
+    // 0 = Original fixed configuration baseline.
+    // 1 = Generate training data for prediction-based approach.
+    // 2 = Prediction-based adaptive learned early termination.
+    // 3 = ndis-based fixed configuration to find the minimum number
+    //     of distance evaluations to reach certain accuracy targets. This is
+    //     needed for generating training data and grid search on different
+    //     intermediate search result features.
+    int search_mode;
+
+    // Maximum termination condition found in the training data.
+    // This is used as an upper bound of the termination condition at online.
+    long pred_max;
+
     // the link strcuture
     HNSW hnsw;
 
@@ -126,6 +139,17 @@ struct IndexHNSW : Index {
     void reorder_links();
 
     void link_singletons();
+
+    // Load ground truth nearest neighbor database index
+    // for finding ground truth minimum termination condition.
+    void load_gt(long label);
+
+    // Load the thresholds about when to make predictions.
+    // This is related to the choice of intermediate search result features.
+    void load_thresh(long thresh);
+
+    // Load the prediction model.
+    void load_model(char *file);
 };
 
 

@@ -7,6 +7,8 @@
 
 // -*- c++ -*-
 
+#include <fstream>
+
 #include "HNSW.h"
 #include "AuxIndexStructures.h"
 
@@ -53,7 +55,7 @@ HNSW::HNSW(int M) : rng(12345) {
   max_level = -1;
   entry_point = -1;
   efSearch = 16;
-  efConstruction = 40;
+  efConstruction = 500;
   upper_beam = 1;
   offsets.push_back(0);
 }
@@ -262,6 +264,39 @@ void HNSW::shrink_neighbor_list(
   }
 }
 
+// Load ground truth nearest neighbor database index
+// for finding ground truth minimum termination condition.
+void HNSW::load_gt(long label) {
+  if (label == -1) {
+    gtvector.clear();
+  } else if (label == -2) {
+    // For each query, create a separate vector to store the corresponding
+    // ground truth nearest neighbor(s) indexes.
+    std::vector<idx_t> newvector;
+    gtvector.push_back(newvector);
+  } else {
+    gtvector[gtvector.size()-1].push_back(label);
+  }
+}
+
+// Load the thresholds about when to make predictions.
+// This is related to the choice of intermediate search result features.
+void HNSW::load_thresh(long thresh) {
+  if (thresh == -1) {
+    pred_thresh.clear();
+  } else {
+    pred_thresh.push_back(thresh);
+  }
+}
+
+// Load the prediction model.
+void HNSW::load_model(char *file) {
+  std::string filename(file);
+  LightGBM::Boosting *booster =
+    LightGBM::Boosting::CreateBoosting(std::string("gbdt"),
+    filename.c_str());
+  boosters.push_back(booster);
+}
 
 namespace {
 
@@ -673,6 +708,277 @@ std::priority_queue<HNSW::Node> HNSW::search_from_candidate_unbounded(
   return top_candidates;
 }
 
+// For search_mode = 1.
+// Generate training data for prediction-based approach.
+void HNSW::search_from_candidate_unbounded_train(
+  const Node& node,
+  DistanceComputer& qdis,
+  idx_t *I, float *D, int k,
+  idx_t gt_idx,
+  VisitedTable *vt) const
+{
+  int nres = 0; // number of valid results in the heap
+  int thresh_idx = 0; // current pred_thresh timestamp
+  idx_t ndis = 0; // number of distance evaluations
+  // Number of distance evaluations when one of ground truth nearest
+  // neighbor(s) is found. In other words the minimum termination condition.
+  idx_t gt_dis = -1;
+  // Current shortest distance between the query and found nearest neighbor(s).
+  float best_D = node.first;
+  // Found nearest neighbor(s) that have shortest distance to the query.
+  std::vector<idx_t> best_I;
+  best_I.push_back(node.second);
+  // Distance(query, base layer start node), one of the features.
+  float d_nearest = node.first;
+  float d0, d1;
+  float eps = 0.0000000001; // to avoid division by zero
+  int feature_written [pred_thresh.size()] = {};
+  // 4 represents the number of intermediate search result features
+  // at each pred_thresh timestamp.
+  float * feature = new float [4*pred_thresh.size()];
+  storage_idx_t v0, v1;
+  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> candidates;
+  candidates.push(node);
+  faiss::maxheap_push(++nres, D, I, node.first, node.second);
+  vt->set(node.second);
+
+  while (!candidates.empty()) {
+    std::tie(d0, v0) = candidates.top();
+    candidates.pop();
+    size_t begin, end;
+    neighbor_range(v0, 0, &begin, &end);
+
+    for (size_t j = begin; j < end; ++j) {
+      v1 = neighbors[j];
+      if (v1 < 0) {
+        break;
+      }
+      if (vt->get(v1)) {
+        continue;
+      }
+      vt->set(v1);
+      d1 = qdis(v1);
+      ++ndis;
+
+      if (nres < k) {
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      } else if (d1 < D[0]) {
+        faiss::maxheap_pop(nres--, D, I);
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      }
+      if (d1 < best_D) {
+        // If the new search result is better than all previous results,
+        // rebuild best_D and best_I.
+        best_D = d1;
+        best_I.clear();
+        best_I.push_back(v1);
+      } else if (d1 == best_D) {
+        // If the new search result is as good as current best, update best_I.
+        best_I.push_back(v1);
+      }
+      candidates.emplace(d1, v1);
+    }
+    if (thresh_idx < pred_thresh.size()) {
+      // If the number of distance evaluations reach another pred_thresh
+      // timestamp and the corresponding features were not written, record the
+      // intermediate search result features.
+      if (ndis >= pred_thresh[thresh_idx] && feature_written[thresh_idx] == 0) {
+        faiss::maxheap_reorder (k, D, I);
+        feature[thresh_idx*4] = D[0]; // top 1 intermediate search result
+        feature[thresh_idx*4+1] = D[9]; // top 10 intermediate search result
+        feature[thresh_idx*4+2] = D[0]/(d_nearest+eps);
+        feature[thresh_idx*4+3] = D[9]/(d_nearest+eps);
+        faiss::maxheap_heapify (k, D, I, D, I, k);
+        feature_written[thresh_idx] = 1;
+        thresh_idx++;
+      }
+    }
+    if (gt_dis < 0) {
+      // Check best_I to find if there is any ground truth nearest neighbor.
+      // If so, update gt_dis to the current ndis.
+      for (int i_best_I = 0; i_best_I < best_I.size(); i_best_I++) {
+        for (int igt = 0; igt < gtvector[gt_idx].size(); igt++) {
+          if (best_I[i_best_I] == gtvector[gt_idx][igt] && gt_dis < 0) {
+            gt_dis = ndis;
+            break;
+          }
+        }
+        if (gt_dis >= 0) {
+          break;
+        }
+      }
+    }
+    // If all the pred_thresh timestamps are satisfied and the ground truth
+    // termination condition is found, stop searching.
+    if (thresh_idx >= pred_thresh.size() && gt_dis >= 0) {
+      break;
+    }
+  }
+  // It's possible that there is not enough candidate nodes to meet some of
+  // pred_thresh timestamps. In that case we just use the search results at
+  // the end as the features for those timestamps.
+  if (thresh_idx < pred_thresh.size()) {
+    faiss::maxheap_reorder (k, D, I);
+    for (int i_feature = thresh_idx; i_feature < pred_thresh.size(); i_feature++) { 
+      feature[i_feature*4] = D[0];
+      feature[i_feature*4+1] = D[9];
+      feature[i_feature*4+2] = D[0]/(d_nearest+eps);
+      feature[i_feature*4+3] = D[9]/(d_nearest+eps);
+    }
+    faiss::maxheap_heapify (k, D, I, D, I, k);
+  }
+  faiss::maxheap_reorder (k, D, I);
+  // HACK: we overwrite the actual search result distances in D
+  // by the features so that we can easily write the features by
+  // reading the search results without additional APIs.
+  D[0] = (float)gt_dis;
+  D[1] = d_nearest;
+  for (int i_feature = 0; i_feature < 4*pred_thresh.size(); i_feature++) {
+    D[2+i_feature] = feature[i_feature];
+  }
+  delete [] feature;
+}
+
+// For search_mode = 2.
+// Prediction-based adaptive learned early termination.
+void HNSW::search_from_candidate_unbounded_pred(
+  const Node& node,
+  DistanceComputer& qdis,
+  idx_t *I, float *D, int k,
+  const float *x, size_t d, long pred_max,
+  VisitedTable *vt) const
+{
+  int nres = 0; // number of valid results in the heap
+  int thresh_idx = 0; // current pred_thresh timestamp
+  idx_t ndis = 0; // number of distance evaluations
+  // term_cond is the termination condition computed as
+  // min((2**max(prediction,0)) * efSearch / 100.0, pred_max).
+  // Here efSearch is used as a tunable multiplier.
+  idx_t term_cond = -1;
+  // Distance(query, base layer start node), one of the features.
+  float d_nearest = node.first;
+  float d0, d1;
+  double eps = 0.0000000001; // to avoid division by zero
+  storage_idx_t v0, v1;
+  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> candidates;
+  candidates.push(node);
+  faiss::maxheap_push(++nres, D, I, node.first, node.second);
+  vt->set(node.second);
+
+  while (!candidates.empty()) {
+    std::tie(d0, v0) = candidates.top();
+    candidates.pop();
+    size_t begin, end;
+    neighbor_range(v0, 0, &begin, &end);
+
+    for (size_t j = begin; j < end; ++j) {
+      v1 = neighbors[j];
+      if (v1 < 0) {
+        break;
+      }
+      if (vt->get(v1)) {
+        continue;
+      }
+      vt->set(v1);
+      d1 = qdis(v1);
+      ++ndis;
+
+      if (nres < k) {
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      } else if (d1 < D[0]) {
+        faiss::maxheap_pop(nres--, D, I);
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      }
+      candidates.emplace(d1, v1);
+    }
+    // If the termination condition is met, stop searching.
+    if (term_cond > 0 && ndis >= term_cond) {
+      break;
+    }
+    // If the number of distance evaluations reach another pred_thresh
+    // timestamp, make a prediction.
+    if (thresh_idx < pred_thresh.size() && ndis >= pred_thresh[thresh_idx]) {
+      // double t0 = getmillisecs();
+      double * input = new double[d+5];
+      double * output = new double[1];
+      for (idx_t i = 0; i < d; i++) {
+        input[i] = (double)(x[i]); // the query vector
+      }
+      input[d] = (double)(d_nearest);
+      faiss::maxheap_reorder (k, D, I);
+      input[d+1] = D[0]; // top 1 intermediate search result
+      input[d+2] = D[9]; // top 10 intermediate search result
+      faiss::maxheap_heapify (k, D, I, D, I, k);
+      input[d+3] = input[d+1]/(d_nearest+eps);
+      input[d+4] = input[d+2]/(d_nearest+eps);
+      // Make prediction.
+      (boosters[thresh_idx])->PredictRaw(input, output, &tree_early_stop);
+      term_cond = std::min(pred_max, (long)(ceil(pow(2.0,
+        std::max((double)0,output[0]))*efSearch/100.0)));
+      delete [] input;
+      delete [] output;
+      thresh_idx++;
+      // printf("Done in %.3f ms\n", getmillisecs() - t0);
+      if (ndis >= term_cond) {
+        break;
+      }
+    }
+  }
+}
+
+// For search_mode = 3.
+// ndis-based fixed configuration to find the minimum number
+// of distance evaluations to reach certain accuracy targets. This is
+// needed for generating training data and grid search on different
+// intermediate search result features.
+void HNSW::search_from_candidate_unbounded_ndis(
+  const Node& node,
+  DistanceComputer& qdis,
+  idx_t *I, float *D,
+  int k, VisitedTable *vt) const
+{
+  int nres = 0;
+  idx_t ndis = 0;
+  float d0, d1;
+  storage_idx_t v0, v1;
+  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> candidates;
+  candidates.push(node);
+  faiss::maxheap_push(++nres, D, I, node.first, node.second);
+  vt->set(node.second);
+  while (!candidates.empty()) {
+    std::tie(d0, v0) = candidates.top();
+    candidates.pop();
+    size_t begin, end;
+    neighbor_range(v0, 0, &begin, &end);
+
+    for (size_t j = begin; j < end; ++j) {
+      v1 = neighbors[j];
+      if (v1 < 0) {
+        break;
+      }
+      if (vt->get(v1)) {
+        continue;
+      }
+      vt->set(v1);
+      d1 = qdis(v1);
+      ++ndis;
+
+      if (nres < k) {
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      } else if (d1 < D[0]) {
+        faiss::maxheap_pop(nres--, D, I);
+        faiss::maxheap_push(++nres, D, I, d1, v1);
+      }
+      candidates.emplace(d1, v1);
+    }
+    // Here we use efSearch as the threshold to stop searching when the number
+    // of distance evaluations reach a fixed configuration.
+    if (ndis >= efSearch) {
+      break;
+    }
+  }
+}
+
 void HNSW::search(DistanceComputer& qdis, int k,
                   idx_t *I, float *D,
                   VisitedTable& vt) const
@@ -750,6 +1056,32 @@ void HNSW::search(DistanceComputer& qdis, int k,
   }
 }
 
+// Customized search() for search_mode = 1, 2, 3.
+void HNSW::search_custom(DistanceComputer& qdis, int k,
+                         idx_t *I, float *D,
+                         int search_mode, idx_t gt_idx,
+                         const float *x, size_t d, long pred_max,
+                         VisitedTable& vt) const
+{
+  //  greedy search on upper levels
+  storage_idx_t nearest = entry_point;
+  float d_nearest = qdis(nearest);
+
+  for(int level = max_level; level >= 1; level--) {
+    greedy_update_nearest(*this, qdis, level, nearest, d_nearest);
+  }
+  if (search_mode == 1) {
+    search_from_candidate_unbounded_train(Node(d_nearest, nearest),
+      qdis, I, D, k, gt_idx, &vt);
+  } else if (search_mode == 2) {
+    search_from_candidate_unbounded_pred(Node(d_nearest, nearest),
+      qdis, I, D, k, x, d, pred_max, &vt);
+  } else if (search_mode == 3) {
+    search_from_candidate_unbounded_ndis(Node(d_nearest, nearest),
+      qdis, I, D, k, &vt);
+  }
+  vt.advance();
+}
 
 void HNSW::MinimaxHeap::push(storage_idx_t i, float v) {
   if (k == n) {

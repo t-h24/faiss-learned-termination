@@ -1357,5 +1357,95 @@ IndexBinary *read_index_binary (const char *fname, int io_flags) {
     return idx;
 }
 
+// For IVF, export the cluster id for each database vetor
+// for finding ground truth minimum termination condition.
+void write_cluster_id (const Index *idx, const char *path) {
+    std::string spath(path);
+    if (const IndexIVF * ivf =
+        dynamic_cast<const IndexIVF *> (idx)) {
+        std::string filename = spath + "_clusterid.csv";
+        remove(filename.c_str());
+        if (const ArrayInvertedLists * ivl =
+            dynamic_cast<const ArrayInvertedLists *> (ivf->invlists)) {
+            std::ofstream out1(filename);
+            for (size_t i = 0; i < ivl->nlist; i++) {
+                for (Index::idx_t n : ivl->ids[i]) {
+                    out1 << n << '\n'; // database vector index
+                    out1 << i << '\n'; // cluster index that the vector belongs to
+                }
+            }
+        }
+    } else if (const IndexPreTransform * ipt =
+               dynamic_cast<const IndexPreTransform*> (idx)) {
+        if (const IndexIVF * ivf =
+            dynamic_cast<const IndexIVF *> (ipt->index)) {
+            std::string filename = spath + "_clusterid_quantized.csv";
+            remove(filename.c_str());
+            if (const ArrayInvertedLists * ivl =
+                dynamic_cast<const ArrayInvertedLists *> (ivf->invlists)) {
+                std::ofstream out1(filename);
+                for (size_t i = 0; i < ivl->nlist; i++) {
+                    for (Index::idx_t n : ivl->ids[i]) {
+                        out1 << n << '\n';
+                        out1 << i << '\n';
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Load ground truth nearest neighbor database index
+// for finding ground truth minimum termination condition.
+void load_gt (Index *idx, long label) {
+    if (IndexHNSW * ihw =
+        dynamic_cast<IndexHNSW *> (idx)) {
+        ihw->load_gt(label);
+    } else if (IndexPreTransform * ipt =
+               dynamic_cast<IndexPreTransform*> (idx)) {
+        if (IndexIVF * ivf =
+            dynamic_cast<IndexIVF *> (ipt->index)) {
+            ivf->load_gt(label);
+        }
+    } else if (IndexIVF * ivf =
+        dynamic_cast<IndexIVF *> (idx)) {
+        ivf->load_gt(label);
+    }
+}
+
+// Load the thresholds about when to make predictions.
+// This is related to the choice of intermediate search result features.
+void load_thresh (Index *idx, long thresh) {
+    if (IndexHNSW * ihw =
+        dynamic_cast<IndexHNSW *> (idx)) {
+        ihw->load_thresh(thresh);
+    } else if (IndexPreTransform * ipt =
+               dynamic_cast<IndexPreTransform*> (idx)) {
+        if (IndexIVF * ivf =
+            dynamic_cast<IndexIVF *> (ipt->index)) {
+            ivf->load_thresh(thresh);
+        }
+    } else if (IndexIVF * ivf =
+        dynamic_cast<IndexIVF *> (idx)) {
+        ivf->load_thresh(thresh);
+    }
+}
+
+// Load the prediction model.
+void load_model (Index *idx, char *path) {
+    if (IndexHNSW * ihw =
+        dynamic_cast<IndexHNSW *> (idx)) {
+        ihw->load_model(path);
+    } else if (IndexPreTransform * ipt =
+               dynamic_cast<IndexPreTransform*> (idx)) {
+        if (IndexIVF * ivf =
+            dynamic_cast<IndexIVF *> (ipt->index)) {
+            ivf->load_model(path);
+        }
+    } else if (IndexIVF * ivf =
+        dynamic_cast<IndexIVF *> (idx)) {
+        ivf->load_model(path);
+    }
+}
 
 } // namespace faiss

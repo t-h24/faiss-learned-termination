@@ -557,6 +557,38 @@ void ParameterSpace::set_index_parameter (
         }
     }
 
+    // 0 = Original fixed configuration baseline.
+    // 1 = Generate training data for prediction-based approach.
+    // 2 = Prediction-based adaptive learned early termination.
+    // 3 = For HNSW: ndis-based fixed configuration to find the minimum number
+    //     of distance evaluations to reach certain accuracy targets. This is
+    //     needed for generating training data and grid search on different
+    //     intermediate search result features.
+    //     For IVF: simple heuristic approach based on query-centroid distances.
+    if (name == "search_mode") {
+        if (DC (IndexHNSW)) {
+            ix->search_mode = int(val);
+            return;
+        }
+        if (DC (IndexIVF)) {
+            ix->search_mode = int(val);
+            return;
+        }
+    }
+
+    // Maximum termination condition found in the training data.
+    // This is used as an upper bound of the termination condition at online.
+    if (name == "pred_max") {
+        if (DC (IndexHNSW)) {
+            ix->pred_max = long(val);
+            return;
+        }
+        if (DC (IndexIVF)) {
+            ix->pred_max = long(val);
+            return;
+        }
+    }
+
     FAISS_THROW_FMT ("ParameterSpace::set_index_parameter:"
                      "could not set parameter %s",
                      name.c_str());

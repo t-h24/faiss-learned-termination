@@ -14,6 +14,7 @@
 
 
 #include <cstdio>
+#include <fstream>
 
 /** I/O functions can read/write to a filename, a file handle or to an
  * object that abstracts the medium.
@@ -41,6 +42,18 @@ void write_index (const Index *idx, IOWriter *writer);
 void write_index_binary (const IndexBinary *idx, const char *fname);
 void write_index_binary (const IndexBinary *idx, FILE *f);
 void write_index_binary (const IndexBinary *idx, IOWriter *writer);
+
+// For IVF, export the cluster id for each database vetor
+// for finding ground truth minimum termination condition.
+void write_cluster_id (const Index *idx, const char *path);
+// Load ground truth nearest neighbor database index
+// for finding ground truth minimum termination condition.
+void load_gt (Index *idx, long label);
+// Load the thresholds about when to make predictions.
+// This is related to the choice of intermediate search result features.
+void load_thresh (Index *idx, long thresh);
+// Load the prediction model.
+void load_model (Index *idx, char *path);
 
 // The read_index flags are implemented only for a subset of index types.
 const int IO_FLAG_MMAP = 1; // try to memmap if possible

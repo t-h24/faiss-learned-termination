@@ -15,6 +15,9 @@
 
 #include <omp.h>
 
+#include <LightGBM/boosting.h>
+#include <LightGBM/prediction_early_stop.h>
+
 #include "Index.h"
 #include "FaissAssert.h"
 #include "utils.h"
@@ -136,6 +139,22 @@ struct HNSW {
   /// use bounded queue during exploration
   bool search_bounded_queue = true;
 
+  // Ground truth nearest neighbor indexes.
+  std::vector<std::vector<long>> gtvector;
+
+  // When to make prediction.
+  std::vector<long> pred_thresh;
+
+  // Prediction models for decision tree approach.
+  std::vector<LightGBM::Boosting *> boosters;
+
+  // Early stop condition for decision tree.
+  // We didn't employ early stopping, so this is just a dummy.
+  LightGBM::PredictionEarlyStopConfig tree_config;
+  LightGBM::PredictionEarlyStopInstance tree_early_stop =
+    LightGBM::CreatePredictionEarlyStopInstance(std::string("none"),
+    tree_config);
+
   // methods that initialize the tree sizes
 
   /// initialize the assign_probas and cum_nneighbor_per_level to
@@ -194,10 +213,49 @@ struct HNSW {
     VisitedTable *vt
   ) const;
 
+  // For search_mode = 1.
+  // Generate training data for prediction-based approach.
+  void search_from_candidate_unbounded_train(
+    const Node& node,
+    DistanceComputer& qdis,
+    idx_t *I, float *D, int k,
+    idx_t gt_idx,
+    VisitedTable *vt
+  ) const;
+
+  // For search_mode = 2.
+  // Prediction-based adaptive learned early termination.
+  void search_from_candidate_unbounded_pred(
+    const Node& node,
+    DistanceComputer& qdis,
+    idx_t *I, float *D, int k,
+    const float *x, size_t d, long pred_max,
+    VisitedTable *vt
+  ) const;
+
+  // For search_mode = 3.
+  // ndis-based fixed configuration to find the minimum number
+  // of distance evaluations to reach certain accuracy targets. This is
+  // needed for generating training data and grid search on different
+  // intermediate search result features.
+  void search_from_candidate_unbounded_ndis(
+    const Node& node,
+    DistanceComputer& qdis,
+    idx_t *I, float *D, int k,
+    VisitedTable *vt
+  ) const;
+
   /// search interface
   void search(DistanceComputer& qdis, int k,
               idx_t *I, float *D,
               VisitedTable& vt) const;
+
+  // Customized search() for search_mode = 1, 2, 3.
+  void search_custom(DistanceComputer& qdis, int k,
+                     idx_t *I, float *D,
+                     int search_mode, idx_t gt_idx,
+                     const float *x, size_t d, long pred_max,
+                     VisitedTable& vt) const;
 
   void reset();
 
@@ -212,6 +270,16 @@ struct HNSW {
     std::vector<NodeDistFarther>& output,
     int max_size);
 
+  // Load ground truth nearest neighbor database index
+  // for finding ground truth minimum termination condition.
+  void load_gt(long label);
+
+  // Load the thresholds about when to make predictions.
+  // This is related to the choice of intermediate search result features.
+  void load_thresh(long thresh);
+
+  // Load the prediction model.
+  void load_model(char *file);
 };
 
 

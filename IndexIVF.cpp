@@ -14,6 +14,7 @@
 
 #include <cstdio>
 #include <memory>
+#include <fstream>
 
 #include "utils.h"
 #include "hamming.h"
@@ -228,21 +229,55 @@ void IndexIVF::make_direct_map (bool new_maintain_direct_map)
 void IndexIVF::search (idx_t n, const float *x, idx_t k,
                          float *distances, idx_t *labels) const
 {
-    long * idx = new long [n * nprobe];
-    ScopeDeleter<long> del (idx);
-    float * coarse_dis = new float [n * nprobe];
-    ScopeDeleter<float> del2 (coarse_dis);
+    if (search_mode == 0) { // original fixed configuration baseline
+        long * idx = new long [n * nprobe];
+        ScopeDeleter<long> del (idx);
+        float * coarse_dis = new float [n * nprobe];
+        ScopeDeleter<float> del2 (coarse_dis);
 
-    double t0 = getmillisecs();
-    quantizer->search (n, x, nprobe, coarse_dis, idx);
-    indexIVF_stats.quantization_time += getmillisecs() - t0;
+        double t0 = getmillisecs();
+        quantizer->search (n, x, nprobe, coarse_dis, idx);
+        indexIVF_stats.quantization_time += getmillisecs() - t0;
 
-    t0 = getmillisecs();
-    invlists->prefetch_lists (idx, n * nprobe);
+        t0 = getmillisecs();
+        invlists->prefetch_lists (idx, n * nprobe);
 
-    search_preassigned (n, x, k, idx, coarse_dis,
-                        distances, labels, false);
-    indexIVF_stats.search_time += getmillisecs() - t0;
+        search_preassigned (n, x, k, idx, coarse_dis,
+                            distances, labels, false);
+        indexIVF_stats.search_time += getmillisecs() - t0;
+    } else {
+        long num_candidate_cluster;
+        if (search_mode == 1 || search_mode == 2) {
+            // Need at least 100 because it is required by the query-centroid
+            // distance ratio features. If you have less than 100 total
+            // clusters, you need to redefine the features and change
+            // corresponding code.
+            num_candidate_cluster = pred_max;
+            num_candidate_cluster = std::max((long)100, num_candidate_cluster);
+        } else if (search_mode == 3) {
+            // For the simple heuristic-based approach for comparison we
+            // assume that queries only need to search at most top 20% nearest
+            // clusters since all test queries meet this assumption.
+            num_candidate_cluster = invlists->nlist/5;
+        } else {
+            FAISS_THROW_MSG ("unsupported search_mode");
+        }
+        long * idx = new long [n * num_candidate_cluster];
+        ScopeDeleter<long> del (idx);
+        float * coarse_dis = new float [n * num_candidate_cluster];
+        ScopeDeleter<float> del2 (coarse_dis);
+
+        double t0 = getmillisecs();
+        quantizer->search (n, x, num_candidate_cluster, coarse_dis, idx);
+        indexIVF_stats.quantization_time += getmillisecs() - t0;
+
+        t0 = getmillisecs();
+        invlists->prefetch_lists (idx, n * num_candidate_cluster);
+
+        search_preassigned_custom (n, x, k, idx, coarse_dis, distances,
+                                   labels, false, num_candidate_cluster);
+        indexIVF_stats.search_time += getmillisecs() - t0;
+    }
 }
 
 
@@ -430,6 +465,262 @@ void IndexIVF::search_preassigned (idx_t n, const float *x, idx_t k,
 
 
 
+
+// Customized search_preassigned() for search_mode = 1, 2, 3.
+// Added an input variable num_candidate_cluster because we do not use
+// nprobe to determine the number of candidate clusters.
+// We didn't implement OpenMP parallelization because we focused on
+// single-thread performance in this work.
+void IndexIVF::search_preassigned_custom (idx_t n, const float *x, idx_t k,
+                                          const idx_t *keys,
+                                          const float *coarse_dis,
+                                          float *distances, idx_t *labels,
+                                          bool store_pairs,
+                                          long num_candidate_cluster,
+                                          const IVFSearchParameters *params) const
+{
+    long nprobe = params ? params->nprobe : this->nprobe;
+
+    size_t nlistv = 0, ndis = 0, nheap = 0;
+
+    using HeapForIP = CMin<float, idx_t>;
+    using HeapForL2 = CMax<float, idx_t>;
+
+    for (idx_t i = 0; i < n; i++) {
+        InvertedListScanner *scanner = get_InvertedListScanner(store_pairs);
+        ScopeDeleter1<InvertedListScanner> del(scanner);
+
+        /*****************************************************
+         * Depending on parallel_mode, there are two possible ways
+         * to organize the search. Here we define local functions
+         * that are in common between the two
+         ******************************************************/
+
+        // intialize + reorder a result heap
+
+        auto init_result = [&](float *simi, idx_t *idxi) {
+            if (metric_type == METRIC_INNER_PRODUCT) {
+                heap_heapify<HeapForIP> (k, simi, idxi);
+            } else {
+                heap_heapify<HeapForL2> (k, simi, idxi);
+            }
+        };
+
+        auto reorder_result = [&] (float *simi, idx_t *idxi) {
+            if (metric_type == METRIC_INNER_PRODUCT) {
+                heap_reorder<HeapForIP> (k, simi, idxi);
+            } else {
+                heap_reorder<HeapForL2> (k, simi, idxi);
+            }
+        };
+
+        // single list scan using the current scanner (with query
+        // set porperly) and storing results in simi and idxi
+        auto scan_one_list = [&] (idx_t key, float coarse_dis_i,
+                                    float *simi, idx_t *idxi) {
+
+            if (key < 0) {
+                // not enough centroids for multiprobe
+                return (size_t)0;
+            }
+            FAISS_THROW_IF_NOT_FMT (key < (idx_t) nlist,
+                    "Invalid key=%ld nlist=%ld\n",
+                    key, nlist);
+
+            size_t list_size = invlists->list_size(key);
+
+            // don't waste time on empty lists
+            if (list_size == 0) {
+                return (size_t)0;
+            }
+
+            scanner->set_list (key, coarse_dis_i);
+
+            nlistv++;
+
+            InvertedLists::ScopedCodes scodes (invlists, key);
+
+            std::unique_ptr<InvertedLists::ScopedIds> sids;
+            const Index::idx_t * ids = nullptr;
+
+            if (!store_pairs)  {
+                sids.reset (new InvertedLists::ScopedIds (invlists, key));
+                ids = sids->get();
+            }
+
+            nheap += scanner->scan_codes (list_size, scodes.get(),
+                                            ids, simi, idxi, k);
+
+            return list_size;
+        };
+
+        /****************************************************
+        * Actual loops, depending on search_mode
+        ****************************************************/
+
+        scanner->set_query (x + i * d);
+        float * simi = distances + i * k;
+        idx_t * idxi = labels + i * k;
+        init_result (simi, idxi);
+        long nscan = 0;
+
+        if (search_mode == 1) { // generate training/testing data
+            // 4 represents the number of intermediate search result features
+            // at each pred_thresh timestamp.
+            float * feature = new float [4 * pred_thresh.size()];
+            float eps = 0.0000000001; // to avoid division by zero
+            // Search clusters and record the intermediate search result
+            // features at each pred_thresh timestamp.
+            size_t start = 0;
+            for (long j = 0; j < pred_thresh.size(); j++) {
+                if (j != 0) {
+                    start = pred_thresh[j-1];
+                }
+                for (size_t ik = start; ik < pred_thresh[j]; ik++) {
+                    nscan += scan_one_list (
+                        keys [i * num_candidate_cluster + ik],
+                        coarse_dis[i * num_candidate_cluster + ik],
+                        simi, idxi
+                    );
+                }
+                // Reorder the heap before recording search result.
+                reorder_result (simi, idxi);
+                feature[j*4] = simi[0]; // top 1 intermediate search result
+                feature[j*4+1] = simi[9]; // top 10 intermediate search result
+                feature[j*4+2] = simi[0]/(simi[9]+eps); // top 1/top 10
+                // Top 1/top 1 centroid-query distance.
+                feature[j*4+3] = simi[0]/(coarse_dis[i*num_candidate_cluster]+eps);
+                // Heapify the heap to continue the search.
+                heap_heapify<HeapForL2> (k, simi, idxi, simi, idxi, k);
+            }
+            ndis += nscan;
+            reorder_result (simi, idxi);
+            // HACK: we overwrite the actual search result distances in simi
+            // by the features so that we can easily write the features by
+            // reading the search results without additional APIs.
+            
+            // Find the ground truth minimum termination condition in terms of
+            // minimum number of nearest clusters to search. For IVF, gtvector
+            // includes the cluster ids that have at least one of the ground
+            // truth nearest neighbors. Note that we count the search as
+            // successful as long as one of the ground truth nearest neighbors
+            // is found (ties allowed)
+            simi[0] = 0;
+            for (long j = 0; j < num_candidate_cluster; j++) {
+                for (int igt = 0; igt < gtvector[i].size(); igt++) {
+                    if (keys[i*num_candidate_cluster+j] == gtvector[i][igt]) {
+                        simi[0] = j+1;
+                        break;
+                    }
+                }
+                if (simi[0] != 0) {
+                    break;
+                }
+            }
+            // Distance(query, xth nearest cluster centroid) /
+            // distance(query, 1st nearest cluster centroid)
+            // where x = 10, 20, 30, ..., 90, 100.
+            for (int j = 1; j < 11; j++) {
+                simi[j] = coarse_dis[i*num_candidate_cluster+j*10-1]/
+                    (coarse_dis[i*num_candidate_cluster]+eps);
+            }
+            // The recorded intermediate search results.
+            for (int j = 0; j < 4*pred_thresh.size(); j++) {
+                simi[11+j] = feature[j];
+            }
+            delete [] feature;
+        } else if (search_mode == 2) { // learned early termination
+            // term_cond is the termination condition computed as
+            // min(max(prediction,1) * nprobe / 100.0, pred_max).
+            // Here nprobe is used as a tunable multiplier.
+            // For 1 billion database we actually predict the log of
+            // termiantion condition so term_cond is computed as
+            // min((2**max(prediction,0)) * nprobe / 100.0, pred_max).
+            long term_cond = -1;
+            int thresh_idx = 0; // current pred_thresh timestamp 
+            double * input = new double[d+14]; // input features
+            double * output = new double[1]; // prediction output
+            double eps = 0.0000000001; // to avoid division by zero
+            // Query vector features.
+            for (idx_t j = 0; j < d; j++) {
+                input[j] = (double)(x[i * d + j]);
+            }
+            // Distance(query, xth nearest cluster centroid) /
+            // distance(query, 1st nearest cluster centroid)
+            // where x = 10, 20, 30, ..., 90, 100.
+            for (int j = 1; j < 11; j++) {
+                input[d+j-1] = coarse_dis[i*num_candidate_cluster+j*10-1]/
+                    (coarse_dis[i*num_candidate_cluster]+eps);
+            }
+            // Search up to top term_cond clusters. Whenever a pred_thresh is
+            // reached make a prediction to update term_cond.
+            for (size_t ik = 0; ik < pred_max; ik++) {
+                nscan += scan_one_list (
+                    keys [i * num_candidate_cluster + ik],
+                    coarse_dis[i * num_candidate_cluster + ik],
+                    simi, idxi
+                );
+                if (thresh_idx < pred_thresh.size() &&
+                    ik+1 == pred_thresh[thresh_idx]) {
+                    reorder_result (simi, idxi);
+                    input[d+10] = simi[0]; // top 1 intermediate search result
+                    input[d+11] = simi[9]; // top 10 intermediate search result
+                    input[d+12] = simi[0]/(simi[9]+eps); // top 1/top 10
+                    // Top 1/top 1 centroid-query distance.
+                    input[d+13] = simi[0]/(coarse_dis[i*num_candidate_cluster]+eps);
+                    // Make prediction.
+                    (boosters[thresh_idx])->PredictRaw(input, output,
+                        &tree_early_stop);
+                    if (ntotal < 1000000000) {
+                        term_cond = (long)(ceil(std::max((double)1,output[0])*
+                            nprobe/100.0));
+                    } else {
+                        term_cond = (long)(ceil(pow(2.0,
+                            std::max((double)0,output[0]))*nprobe/100.0));
+                    }
+                    heap_heapify<HeapForL2> (k, simi, idxi, simi, idxi, k);
+                    thresh_idx++;
+                }
+                // Stop when termination condition reached.
+                if (term_cond > 0 && ik+1 >= term_cond) {
+                    break;
+                }
+            }
+            reorder_result (simi, idxi);
+            ndis += nscan;
+            delete [] input;
+            delete [] output;
+        } else if (search_mode == 3) { // simple heuristic approach
+            size_t heur_nprobe = 0;
+            // Use distance(query, 1st nearest cluster centroid)*nprobe/100.0
+            // as threshold and search clusters with distance(query, centroid)
+            // no more than the threshold.
+            // Here nprobe is used as a tunable multiplier.
+            float thresh = coarse_dis[i*num_candidate_cluster]
+                *float(nprobe)/100.0;
+            for (size_t j = 0; j < num_candidate_cluster; j++) {
+                if (coarse_dis[i*num_candidate_cluster+j] <= thresh) {
+                    heur_nprobe = j+1;
+                } else {
+                    break;
+                }
+            }
+            for (size_t ik = 0; ik < heur_nprobe; ik++) {
+                nscan += scan_one_list (
+                    keys [i * num_candidate_cluster + ik],
+                    coarse_dis[i * num_candidate_cluster + ik],
+                    simi, idxi
+                );
+            }
+            reorder_result (simi, idxi);
+            ndis += nscan;
+        }
+    }
+    indexIVF_stats.nq += n;
+    indexIVF_stats.nlist += nlistv;
+    indexIVF_stats.ndis += ndis;
+    indexIVF_stats.nheap_updates += nheap;
+}
 
 void IndexIVF::range_search (idx_t nx, const float *x, float radius,
                              RangeSearchResult *result) const
@@ -810,6 +1101,40 @@ void IndexIVF::copy_subset_to (IndexIVF & other, int subset_type,
 
 }
 
+// Load cluster indexes where the ground truth nearest neighbor(s) reside.
+// This is for finding ground truth minimum termination condition.
+void IndexIVF::load_gt(long label)
+{
+    if (label == -1){
+        gtvector.clear();
+    } else if (label == -2){
+        std::vector<idx_t> newquery;
+        gtvector.push_back(newquery);
+    } else {
+        gtvector[gtvector.size()-1].push_back(label);
+    }
+}
+
+// Load the thresholds about when to make predictions.
+// This is related to the choice of intermediate search result features.
+void IndexIVF::load_thresh(long thresh)
+{
+    if (thresh == -1){
+        pred_thresh.clear();
+    } else {
+        pred_thresh.push_back(thresh);
+    }
+}
+
+// Load the prediction model.
+void IndexIVF::load_model(char *file)
+{
+    std::string filename(file);
+    LightGBM::Boosting *booster =
+        LightGBM::Boosting::CreateBoosting(std::string("gbdt"),
+        filename.c_str());
+    boosters.push_back(booster);
+}
 
 IndexIVF::~IndexIVF()
 {

@@ -13,6 +13,8 @@
 
 #include <vector>
 
+#include <LightGBM/boosting.h>
+#include <LightGBM/prediction_early_stop.h>
 
 #include "Index.h"
 #include "InvertedLists.h"
@@ -105,9 +107,35 @@ struct IndexIVF: Index, Level1Quantizer {
      */
     int parallel_mode;
 
+    // 0 = Original fixed configuration baseline.
+    // 1 = Generate training data for prediction-based approach.
+    // 2 = Prediction-based adaptive learned early termination.
+    // 3 = Simple heuristic approach based on query-centroid distances.
+    int search_mode;
+
+    // Maximum termination condition found in the training data.
+    // This is used as an upper bound of the termination condition at online.
+    long pred_max;
+
     /// map for direct access to the elements. Enables reconstruct().
     bool maintain_direct_map;
     std::vector <idx_t> direct_map;
+
+    // Cluster indexes where the ground truth nearest neighbor(s) reside.
+    std::vector<std::vector<long>> gtvector;
+
+    // When to make prediction.
+    std::vector<long> pred_thresh;
+
+    // Prediction models for decision tree approach.
+    std::vector<LightGBM::Boosting *> boosters;
+
+    // Early stop condition for decision tree.
+    // We didn't employ early stopping, so this is just a dummy.
+    LightGBM::PredictionEarlyStopConfig tree_config;
+    LightGBM::PredictionEarlyStopInstance tree_early_stop =
+        LightGBM::CreatePredictionEarlyStopInstance(std::string("none"),
+        tree_config);
 
     /** The Inverted file takes a quantizer (an Index) on input,
      * which implements the function mapping a vector to a list
@@ -168,6 +196,20 @@ struct IndexIVF: Index, Level1Quantizer {
                                      bool store_pairs,
                                      const IVFSearchParameters *params=nullptr
                                      ) const;
+
+    // Customized search_preassigned() for search_mode = 1, 2, 3.
+    // Added an input variable num_candidate_cluster because we do not use
+    // nprobe to determine the number of candidate clusters.
+    // We didn't implement OpenMP parallelization because we focused on
+    // single-thread performance in this work.
+    virtual void search_preassigned_custom (idx_t n, const float *x, idx_t k,
+                                            const idx_t *assign,
+                                            const float *centroid_dis,
+                                            float *distances, idx_t *labels,
+                                            bool store_pairs,
+                                            long num_candidate_cluster,
+                                            const IVFSearchParameters *params=nullptr
+                                            ) const;
 
     /** assign the vectors, then call search_preassign */
     void search (idx_t n, const float *x, idx_t k,
@@ -244,6 +286,17 @@ struct IndexIVF: Index, Level1Quantizer {
      */
     virtual void copy_subset_to (IndexIVF & other, int subset_type,
                                  idx_t a1, idx_t a2) const;
+
+    // Load cluster indexes where the ground truth nearest neighbor(s) reside.
+    // This is for finding ground truth minimum termination condition.
+    virtual void load_gt(long label);
+
+    // Load the thresholds about when to make predictions.
+    // This is related to the choice of intermediate search result features.
+    virtual void load_thresh(long thresh);
+
+    // Load the prediction model.
+    virtual void load_model(char *file);
 
     ~IndexIVF() override;
 
