@@ -1363,7 +1363,7 @@ void write_cluster_id (const Index *idx, const char *path) {
     std::string spath(path);
     if (const IndexIVF * ivf =
         dynamic_cast<const IndexIVF *> (idx)) {
-        std::string filename = spath + "_clusterid.csv";
+        std::string filename = spath + "_clusterid.tsv";
         remove(filename.c_str());
         if (const ArrayInvertedLists * ivl =
             dynamic_cast<const ArrayInvertedLists *> (ivf->invlists)) {
@@ -1379,7 +1379,7 @@ void write_cluster_id (const Index *idx, const char *path) {
                dynamic_cast<const IndexPreTransform*> (idx)) {
         if (const IndexIVF * ivf =
             dynamic_cast<const IndexIVF *> (ipt->index)) {
-            std::string filename = spath + "_clusterid_quantized.csv";
+            std::string filename = spath + "_clusterid_quantized.tsv";
             remove(filename.c_str());
             if (const ArrayInvertedLists * ivl =
                 dynamic_cast<const ArrayInvertedLists *> (ivf->invlists)) {
