@@ -1,3 +1,62 @@
+
+[//]: # "**********************************************************"
+[//]: # "** Additional instruction for Faiss-learned-termination **"
+[//]: # "**********************************************************"
+
+Installation instruction for Faiss-learned-termination
+====================================================
+
+File changes
+------------
+
+Our implementation modified/added the following files:
+
+```
+modified:   AutoTune.cpp
+modified:   HNSW.cpp
+modified:   HNSW.h
+modified:   IndexHNSW.cpp
+modified:   IndexHNSW.h
+modified:   IndexIVF.cpp
+modified:   IndexIVF.h
+modified:   index_io.cpp
+modified:   index_io.h
+```
+
+The modifications above include the core implementation of our learned adaptive early termination approach.
+
+```
+new file:   include/LightGBM/*
+new file:   lib/lib_lightgbm.so
+new file:   build.sh
+new file:   example_makefiles/makefile.inc.SIGMOD
+```
+
+The new files above are necessary to compile our implementation.
+
+```
+new file:   benchs/learned_termination/*
+```
+
+The new files above are necessary to reproduce our experiments.
+
+
+Installation
+------------
+
+You can mostly follow the 'Compile from source' below from the original Faiss documentation, but with the following changes:
+
+1. After generating `makefile.inc` via `./configure`, you need to add flags to link the LightGBM headers and library that we included. We included an example [makefile.inc](example_makefiles/makefile.inc.SIGMOD) that we used when installing on Ubuntu 16.04.4 LTS.
+2. Linking the provided LightGBM library allows you to read and perform predictions using existing model files, but does not allow you to train your own LightGBM prediction model. To train models you need to install [LightGBM version 2.3.1](https://github.com/microsoft/LightGBM/blob/v2.3.1/docs/Installation-Guide.rst) and its [Python interface](https://github.com/microsoft/LightGBM/blob/v2.3.1/python-package/README.rst). If you prefer to use a different version of LightGBM, make sure to replace the LightGBM headers and library that we included in this repository.
+3. We included a simple [build script](build.sh) to compile Faiss (CPU version) and its Python interface.
+4. After installation, you need to add the following lines to your `.bashrc`:
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path to the repo/faiss-learned-termination/lib
+export PYTHONPATH=$PYTHONPATH:/path to the repo/faiss-learned-termination/python
+```
+
+***Below is the original Faiss documentation:***
+
 [//]: # "**********************************************************"
 [//]: # "** INSTALL file for Faiss (Fair AI Similarity Search    **"
 [//]: # "**********************************************************"

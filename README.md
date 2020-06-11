@@ -1,3 +1,25 @@
+# Faiss with learned adaptive early termination
+
+This GitHub repository includes the source code for the [SIGMOD paper](https://conglongli.github.io/paper/ann-sigmod2020.pdf):
+
+Conglong Li, Minjia Zhang, David G. Andersen, and Yuxiong He. Improving Approximate Nearest Neighbor Search through Learned Adaptive Early Termination. In *Proceedings of the 2020 ACM SIGMOD International Conference on Management of Data (SIGMOD)*, 2020.
+
+```
+@INPROCEEDINGS{li2020ann,
+  AUTHOR = "Li, Conglong and Zhang, Minjia and Andersen, David G. and He, Yuxiong",
+  TITLE = "{Improving Approximate Nearest Neighbor Search through Learned Adaptive Early Termination}",
+  BOOKTITLE = "{Proceedings of the 2020 ACM SIGMOD International Conference on Management of Data (SIGMOD)}",
+  YEAR = {2020} }
+```
+
+Our implementation is based on [Faiss version 1.5.2](https://github.com/facebookresearch/faiss/tree/v1.5.2) and [LightGBM version 2.3.1](https://github.com/microsoft/LightGBM/tree/v2.3.1). See [INSTALL.md](INSTALL.md) for details about changes to the source code and installation process. See [learned_termination README](benchs/learned_termination) for details about how to reproduce our experiments.
+
+We follow the Faiss and LightGBM repositories' MIT license.
+
+This project is currently not active. We are providing this code "as-is", with limited support. If you have questions, please email [Conglong Li](https://conglongli.github.io/) at conglong.li@gmail.com.
+
+***Below is the original Faiss documentation:***
+
 # Faiss 
 
 Faiss is a library for efficient similarity search and clustering of dense vectors. It contains algorithms that search in sets of vectors of any size, up to ones that possibly do not fit in RAM. It also contains supporting code for evaluation and parameter tuning. Faiss is written in C++ with complete wrappers for Python/numpy. Some of the most useful algorithms are implemented on the GPU. It is developed by [Facebook AI Research](https://research.fb.com/category/facebook-ai-research-fair/).
