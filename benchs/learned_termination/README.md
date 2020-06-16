@@ -6,15 +6,15 @@ This directory contains benchmarking scripts and necessary files to reproduce th
 
 You need to download the ANN_SIFT1B and ANN_GIST1M datasets from http://corpus-texmex.irisa.fr/.
 
-For the DEEP1B dataset, the ground-truth and queries are available at https://yadi.sk/d/11eDCm7Dsn9GA. For the learning and database vectors, use the script https://github.com/arbabenko/GNOIMI/blob/master/downloadDeep1B.py to download the data to subdirectory deep1b/, then concatenate the database files to base.fvecs and the training files to learn.fvecs.
+The DEEP1B dataset is available at https://yadi.sk/d/11eDCm7Dsn9GA. For the learning and database vectors, use the script https://github.com/arbabenko/GNOIMI/blob/master/downloadDeep1B.py to download the data to subdirectory deep1b/, then concatenate the database files to base.fvecs and the training files to learn.fvecs.
 
 The SIFT1B and DEEP1B datasets are huge, so you might want to start from GIST1M.
+
+We didn't use the public ground truth files because our accuracy metric allows tied nearest neighbors. We provided our own ground truth files, and [compute_gt.py](compute_gt.py) is used to find the ground truth nearest neighbors.
 
 ## Reproduce experiments
 
 [`run.sh`](run.sh), [`bench_learned_termination.py`](bench_learned_termination.py), and [`train_gbdt.py`](train_gbdt.py) are the main scripts we used to run the experiments. We also provided LightGBM models that we trained so that you can rerun our experiments without training your own models.
-
-[compute_gt.py](compute_gt.py) is used to find the ground truth nearest neighbors. We didn't use the public ground truth dataset because our accuracy metric allows tied nearest neighbors.
 
 ## One issue about HNSW index
 

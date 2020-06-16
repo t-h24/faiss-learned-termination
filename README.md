@@ -16,7 +16,7 @@ Our implementation is based on [Faiss version 1.5.2](https://github.com/facebook
 
 We follow the Faiss and LightGBM repositories' MIT license.
 
-This project is currently not active. We are providing this code "as-is", with limited support. If you have questions, please email [Conglong Li](https://conglongli.github.io/) at conglong.li@gmail.com.
+This project is currently not active. We are providing this code "as-is", with limited support. If you have questions, please email [Conglong Li](https://conglongli.github.io/) at conglong.li@microsoft.com.
 
 ***Below is the original Faiss documentation:***
 
