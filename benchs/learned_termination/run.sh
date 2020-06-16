@@ -187,7 +187,7 @@ mkdir -p $RESULT_DIR
 # $train -train 1 -thresh 20,51,145 -db DEEP1000M -idx OPQ48_96,IMI2x14,PQ48
 # # 5) Based on the performance estimation in the training log in 4), choose the pred_thresh and prediction model, and evaluate the performance. For 1B case we used a smaller pred_max because the max target in training data is too large.
 # $run -mode 1 -batch 10000 -cluster 16384 -thread 10 -thresh 20 -bsearch 1,1,30000 -db DEEP1000M -idx OPQ48_96,IMI2x14,PQ48 -param search_mode=2,pred_max=100000 > $RESULT_DIR/result_DEEP1000M_IMI2x14_OPQ48_96_tree20_b1_find
-# $run -mode 1 -batch 1 -cluster 16384 -thresh 20 -db DEEP1000M -idx OPQ48_96,IMI2x14,PQ48 -param search_mode=2,pred_max=100000,nprobe={89,291,940,2334,3066,4300,6381,12976,25458} > $RESULT_DIR/result_DEEP1000M_IMI2x14_OPQ48_96_tree20_b1
+# $run -mode 1 -batch 1 -cluster 16384 -thresh 20 -db DEEP1000M -idx OPQ48_96,IMI2x14,PQ48 -param search_mode=2,pred_max=100000,nprobe={86,286,928,2280,3010,4207,6273,12923,27213} > $RESULT_DIR/result_DEEP1000M_IMI2x14_OPQ48_96_tree20_b1
 
 # ### IMI index with quantization
 # ### SIFT 1B dataset
@@ -201,5 +201,5 @@ mkdir -p $RESULT_DIR
 # # 4) Using the training and testing data from 3), train the LightGBM decision tree models.
 # $train -train 1 -thresh 27,65,178 -db SIFT1000M -idx OPQ64_128,IMI2x14,PQ64
 # # 5) Based on the performance estimation in the training log in 4), choose the pred_thresh and prediction model, and evaluate the performance. For 1B case we used a smaller pred_max because the max target in training data is too large.
-# $run -mode 1 -batch 10000 -cluster 16384 -thread 10 -thresh 27 -bsearch 1,1,30000 -db SIFT1000M -idx OPQ64_128,IMI2x14,PQ64 -param search_mode=2,pred_max=50000 > $RESULT_DIR/result_SIFT1000M_IMI2x14_OPQ64_128_tree27_b1_find
-# $run -mode 1 -batch 1 -cluster 16384 -thresh 27 -db SIFT1000M -idx OPQ64_128,IMI2x14,PQ64 -param search_mode=2,pred_max=50000,nprobe={127,405,1267,2917,3759,4950,6949,13973,28959} > $RESULT_DIR/result_SIFT1000M_IMI2x14_OPQ64_128_tree27_b1
+# $run -mode 1 -batch 10000 -cluster 16384 -thread 10 -thresh 27 -bsearch 1,1,40000 -db SIFT1000M -idx OPQ64_128,IMI2x14,PQ64 -param search_mode=2,pred_max=50000 > $RESULT_DIR/result_SIFT1000M_IMI2x14_OPQ64_128_tree27_b1_find
+# $run -mode 1 -batch 1 -cluster 16384 -thresh 27 -db SIFT1000M -idx OPQ64_128,IMI2x14,PQ64 -param search_mode=2,pred_max=50000,nprobe={133,420,1318,3094,3924,5140,7250,14272,30422} > $RESULT_DIR/result_SIFT1000M_IMI2x14_OPQ64_128_tree27_b1
