@@ -96,13 +96,14 @@ def train_helper(f, params, lgb_train, feature_name, features, targets, tag,
             # Testing data. Simulate the learned early termination with
             # different multipliers to estimate the performance. Note that this
             # is just an estimation: the prediction overhead is not considered.
-            percentile = [9250,9500,9600,9700,9800,9900,10000]
-            percentile_max = 10000*(count-count_miss)/count
-            while percentile[-1] > percentile_max:
-                percentile.pop()
-            if percentile[-1] < percentile_max:
-                percentile.append(percentile_max)
-              
+            percent = [0.90,0.95,0.96,0.97,0.98,0.99,1.0]
+            percent_max = float(count-count_miss)/count
+            while percent[-1] > percent_max:
+                percent.pop()
+            if percent[-1] < percent_max:
+                percent.append(percent_max)
+            percentile = [(count-1)*x+1 for x in percent]
+            
             sorted_gt = sorted(targets[i])
             fixed_config = []
             ratio = []
@@ -115,11 +116,11 @@ def train_helper(f, params, lgb_train, feature_name, features, targets, tag,
                 else:
                     ratio.append(1000000000)
             ratio = sorted(ratio)
-            for p in percentile:
-                fixed_config.append(sorted_gt[int(count*p/10000)-1])
-                f.append(['multiplier P{}: {}'.format(p/100.0,
-                    ratio[int(count*p/10000)-1])])
-                multi.append(ratio[int(count*p/10000)-1])
+            for p in range(len(percentile)):
+                fixed_config.append(sorted_gt[int(percentile[p])-1])
+                f.append(['multiplier P{}: {}'.format(percent[p]*100.0,
+                    ratio[int(percentile[p])-1])])
+                multi.append(ratio[int(percentile[p])-1])
             fix_count = [0]*len(fixed_config)
             adapt_count = [0]*len(multi)
             adapt_sum = [0]*len(multi)
