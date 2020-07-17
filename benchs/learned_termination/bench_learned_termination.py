@@ -98,6 +98,14 @@ if dbname.startswith('SIFT'):
     # trim xb to correct size
     xb = xb[:dbsize * 1000 * 1000]
     gt = util.read_tsv('{}gtSIFT{}Mtest.tsv'.format(GT_DIR, dbsize))
+    if search_mode == 0 and train_size > 0 and binary_search == 1:
+        # Take a sample from the training vector to find the minimum fixed
+        # termination condition to reach different accuracy targets. This is
+        # needed to choose the intermediate search result features when
+        # generating training data.
+        xq = xt[:10000]
+        gt = util.read_tsv('{}gtSIFT{}Mtrain{}M.tsv'.format(GT_DIR, dbsize,
+            train_size))[:10000]
     if search_mode == -2:
         xq = xt[:train_size * 1000 * 1000]
         gt = util.read_tsv('{}gtSIFT{}Mtrain{}M.tsv'.format(GT_DIR, dbsize,
@@ -110,6 +118,14 @@ elif dbname.startswith('DEEP'):
     # trim xb to correct size
     xb = xb[:dbsize * 1000 * 1000]
     gt = util.read_tsv('{}gtDEEP{}Mtest.tsv'.format(GT_DIR, dbsize))
+    if search_mode == 0 and train_size > 0 and binary_search == 1:
+        # Take a sample from the training vector to find the minimum fixed
+        # termination condition to reach different accuracy targets. This is
+        # needed to choose the intermediate search result features when
+        # generating training data.
+        xq = xt[:10000]
+        gt = util.read_tsv('{}gtDEEP{}Mtrain{}M.tsv'.format(GT_DIR, dbsize,
+            train_size))[:10000]
     if search_mode == -2:
         xq = xt[:train_size * 1000 * 1000]
         gt = util.read_tsv('{}gtDEEP{}Mtrain{}M.tsv'.format(GT_DIR, dbsize,
@@ -119,6 +135,13 @@ elif dbname.startswith('GIST'):
     xq = util.mmap_fvecs('{}gist_query.fvecs'.format(DB_DIR))
     xt = util.mmap_fvecs('{}gist_learn.fvecs'.format(DB_DIR))
     gt = util.read_tsv('{}gtGIST1Mtest.tsv'.format(GT_DIR))
+    if search_mode == 0 and train_size > 0 and binary_search == 1:
+        # Take a sample from the training vector to find the minimum fixed
+        # termination condition to reach different accuracy targets. This is
+        # needed to choose the intermediate search result features when
+        # generating training data.
+        xq = xt[:10000]
+        gt = util.read_tsv('{}gtGIST1Mtrain500K.tsv'.format(GT_DIR))[:10000]
     if search_mode == -2:
         xq = xt
         gt = util.read_tsv('{}gtGIST1Mtrain500K.tsv'.format(GT_DIR))
