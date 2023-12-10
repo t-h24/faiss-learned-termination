@@ -153,10 +153,10 @@ def preprocess_and_train(training_dir, model_dir, dbname, index_key, xt, xq,
     train_file = '{}{}_{}_train.tsv'.format(training_dir, dbname, index_key)
     test_file = '{}{}_{}_test.tsv'.format(training_dir, dbname, index_key)
     if not os.path.isfile(train_file):
-        print 'training file {} not found'.format(train_file)
+        print('training file {} not found'.format(train_file))
         return
     if not os.path.isfile(test_file):
-        print 'testing file {} not found'.format(train_file)
+        print('testing file {} not found'.format(train_file))
         return
 
     if dbname.startswith('SIFT'):
@@ -227,7 +227,7 @@ def preprocess_and_train(training_dir, model_dir, dbname, index_key, xt, xq,
         len(test_target))])
 
     if train_feature.shape[0] < 2:
-        print 'training file {} too small'.format(train_file)
+        print('training file {} too small'.format(train_file))
         return
 
     # create dataset for lightgbm

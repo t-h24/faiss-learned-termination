@@ -31,11 +31,11 @@ MODEL_DIR = 'training_model/'
 TRAINING_DIR = 'training_data/'
 
 if not os.path.isdir(POPULATED_IDX_DIR):
-    print "%s does not exist, creating it" % POPULATED_IDX_DIR
+    print("%s does not exist, creating it" % POPULATED_IDX_DIR)
     os.mkdir(POPULATED_IDX_DIR)
 
 if not os.path.isdir(TRAINING_DIR):
-    print "%s does not exist, creating it" % TRAINING_DIR
+    print("%s does not exist, creating it" % TRAINING_DIR)
     os.mkdir(TRAINING_DIR)
 
 parser = argparse.ArgumentParser(description='learned termination benchmark')
@@ -52,8 +52,8 @@ parser.add_argument('-bsearch', '--binarysearch',
     help='binary search parameters', default='0,0,0')
 parser.add_argument('-db', '--dbname', help='database name', required=True)
 parser.add_argument('-idx', '--indexkey', help='index key', required=True)
-parser.add_argument('-param', '--parametersets',
-    help='parameter sets', required=True, nargs='+')
+parser.add_argument('-param', '--parameters',
+    help='additional parameters', required=True)
 args = vars(parser.parse_args())
 
 # -2 = generate training data.
@@ -76,7 +76,7 @@ binary_range = [int(args['binarysearch'].split(',')[1]),
                 int(args['binarysearch'].split(',')[2])]
 dbname = args['dbname'] # e.g.: SIFT1M
 index_key = args['indexkey'] # e.g.: IVF1000
-parametersets = args['parametersets'] # e.g.: nprobe={1,2}
+parameters = args['parameters'] # e.g.: search_mode=0,nprobe={1,2}
 
 # Number of iterations over all queries (to get stable performance number).
 num_iter = 4 
@@ -336,10 +336,24 @@ if search_mode < 0:
         data = []
 
 param_list = []
-for param in parametersets:
-    param_list.append(param)
-recall_list = [0.0]*len(parametersets)
-latency_list = [0.0]*len(parametersets)
+search_mode_param = ''
+pred_max_param = ''
+D_mode_param = ''
+
+# Split the parameters into a comma separated list, except inside {}
+parameters = re.split(r',(?![^{]*\})', parameters)
+for param in parameters:
+    if param.startswith('efSearch'):
+        arg_indicies = re.search('\{.*\}$', param).span()
+        efSearch_list = param[arg_indicies[0] + 1:arg_indicies[1] - 1].split(',')
+        for value in efSearch_list:
+            param_list.append(value)
+    elif param.startswith('search_mode'):
+        search_mode_param = param
+    elif param.startswith('pred_max'):
+        pred_max_param = param
+    else:
+        raise ValueError('Unknown parameter: {}'.format(param))
 
 faiss.omp_set_num_threads(num_thread)
 k = 100
@@ -385,42 +399,82 @@ if search_mode < 0 and index_key[:4] != 'HNSW':
         gt_clusters = pickle.load(pkl_file)
         pkl_file.close()
 
-if binary_search == 0:
+if search_mode < 0:
+    if search_mode_param:
+        ps.set_index_parameters(index, search_mode_param)
+    sys.stdout.flush()
+    for i in range(0, nq, batch_size):
+        # When generating training/testing data for the IVF case,
+        # load the cluster indices where the ground truth nearest
+        # neighbor(s) reside.
+        if index_key[:4] != 'HNSW':
+            faiss.load_gt(index, -1)
+            for j in range(batch_size):
+                faiss.load_gt(index, -2)
+                for l in range(len(gt[i+j])):
+                    faiss.load_gt(index, int(gt_clusters[gt[i+j][l]]))
+        # When generating training/testing data for the HNSW case,
+        # load the database vector indices of the ground truth
+        # nearest neighbor(s).
+        if index_key[:4] == 'HNSW':
+            faiss.load_gt(index, -1)
+            for j in range(batch_size):
+                faiss.load_gt(index, -2)
+                for l in range(len(gt[i+j])):
+                    faiss.load_gt(index, int(gt[i+j][l]))
+
+        query = xq[i:i+batch_size,:]
+        D, I = index.search(query, k)
+
+        # When generating training/testing data, read the returned
+        # search results (since this is where we stored the
+        # features and targe values).
+        if index_key[:4] == 'HNSW':
+            for j in range(len(I)):
+                line = []
+                line.append(int(D[j][0]))
+                line.append(i+j)
+                for l in range(1+4*len(pred_thresh)):
+                    line.append(D[j][l+1])
+                data.append(line)
+        else:
+            for j in range(len(I)):
+                line = []
+                line.append(int(D[j][0]))
+                line.append(i+j)
+                for l in range(10+4*len(pred_thresh)):
+                    line.append(D[j][l+1])
+                data.append(line)
+
+    # Write the training/testing data files.
+    if search_mode == -1:
+        util.write_tsv(data, '{}{}_{}_test.tsv'.format(TRAINING_DIR, dbname,
+            index_key))
+    if search_mode == -2:
+        util.write_tsv(data, '{}{}_{}_train.tsv'.format(TRAINING_DIR, dbname,
+            index_key))
+elif binary_search == 0:
+    recall_list = [0.0]*len(param_list)
+    latency_list = [0.0]*len(param_list)
+    if search_mode_param:
+        ps.set_index_parameters(index, search_mode_param)
     for it in range(num_iter):
         print('iteration {}'.format(it))
         if k < 10:
-            print(' '*(len(parametersets[-1])+1)+'R@1    R@10   R@100  time(ms)')
+            print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  time(ms)')
         elif k < 100:
-            print(' '*(len(parametersets[-1])+1)+'R@1    R@10   R@100  time(ms)')
+            print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  time(ms)')
         else:
-            print(' '*(len(parametersets[-1])+1)+'R@1    R@10   R@100  time(ms)')
+            print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  time(ms)')
 
-        for param in range(len(parametersets)):
+        for param in range(len(param_list)):
             sys.stdout.flush()
-            ps.set_index_parameters(index, parametersets[param])
+            ps.set_index_parameters(index, 'efSearch={}'.format(param_list[param]))
             total_recall_at1 = 0.0
             total_recall_at10 = 0.0
             total_recall_at100 = 0.0
             total_latency = 0.0
             for i in range(0, nq, batch_size):
-                # When generating training/testing data for the IVF case,
-                # load the cluster indices where the ground truth nearest
-                # neighbor(s) reside.
-                if search_mode < 0 and index_key[:4] != 'HNSW':
-                    faiss.load_gt(index, -1)
-                    for j in range(batch_size):
-                        faiss.load_gt(index, -2)
-                        for l in range(len(gt[i+j])):
-                            faiss.load_gt(index, int(gt_clusters[gt[i+j][l]]))
-                # When generating training/testing data for the HNSW case,
-                # load the database vector indices of the ground truth
-                # nearest neighbor(s).
-                if search_mode < 0 and index_key[:4] == 'HNSW':
-                    faiss.load_gt(index, -1)
-                    for j in range(batch_size):
-                        faiss.load_gt(index, -2)
-                        for l in range(len(gt[i+j])):
-                            faiss.load_gt(index, int(gt[i+j][l]))
                 query = xq[i:i+batch_size,:]
                 t0 = time.time()
                 D, I = index.search(query, k)
@@ -433,44 +487,17 @@ if binary_search == 0:
                 total_recall_at100 += compute_recall(I[:, :100],
                     gt[i:i+batch_size], 100)
 
-                if search_mode < 0:
-                    # When generating training/testing data, read the returned
-                    # search results (since this is where we stored the
-                    # features and targe values).
-                    if index_key[:4] == 'HNSW':
-                        for j in range(len(I)):
-                            line = []
-                            line.append(int(D[j][0]))
-                            line.append(i+j)
-                            for l in range(1+4*len(pred_thresh)):
-                                line.append(D[j][l+1])
-                            data.append(line)
-                    else:
-                        for j in range(len(I)):
-                            line = []
-                            line.append(int(D[j][0]))
-                            line.append(i+j)
-                            for l in range(10+4*len(pred_thresh)):
-                                line.append(D[j][l+1])
-                            data.append(line)
             tr1 = total_recall_at1 / float(nq)
             tr10 = total_recall_at10 / float(nq)
             tr100 = total_recall_at100 / float(nq)
             tt = total_latency * 1000.0 / nq
-            print(parametersets[param]+
-                ' '*(len(parametersets[-1])+1-len(parametersets[param]))+
+            print(param_list[param]+
+                ' '*(len(param_list[-1])+1-len(param_list[param]))+
                 '{:.4f} {:.4f} {:.4f} {:.4f}'.format(
                 round(tr1,4), round(tr10,4), round(tr100,4), round(tt,4)))
             if it > 0 or num_iter == 1:
                 recall_list[param] += total_recall_at100
                 latency_list[param] += total_latency
-    # Write the training/testing data files.
-    if search_mode == -1:
-        util.write_tsv(data, '{}{}_{}_test.tsv'.format(TRAINING_DIR, dbname,
-            index_key))
-    if search_mode == -2:
-        util.write_tsv(data, '{}{}_{}_train.tsv'.format(TRAINING_DIR, dbname,
-            index_key))
 
     denom = float(nq*max(num_iter-1, 1))
     recall_list = [x/denom for x in recall_list]
@@ -495,7 +522,10 @@ else:
     res = []
     d = {}
     sys.stdout.flush()
-    ps.set_index_parameters(index, parametersets[0])
+    if search_mode_param:
+        ps.set_index_parameters(index, search_mode_param)
+    if pred_max_param:
+        ps.set_index_parameters(index, pred_max_param)
     for t in target:
         ret, act_t = find_config(t, d, k)
         print('To reach recall target {} the min. config/multiplier is {}.'.format(act_t, ret))
