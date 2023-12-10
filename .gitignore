@@ -16,3 +16,8 @@
 /c_api/gpu/bin/
 /tests/test
 /tests/gtest/
+/python/build/
+/python/dist/
+/python/faiss/
+/python/faiss.egg-info/
+/python/swigfaiss.*
