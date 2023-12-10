@@ -352,6 +352,17 @@ for param in parameters:
         search_mode_param = param
     elif param.startswith('pred_max'):
         pred_max_param = param
+    elif param.startswith('D_mode'):
+        D_mode_param = param
+    elif param.startswith('efRange'):
+        arg_indicies = re.search('\{.*\}$', param).span()
+        efRange_list = param[arg_indicies[0] + 1:arg_indicies[1] - 1].split(',')
+        # Start from efRange_list[0], add efRange_list[1] it until it equals efRange_list[2]
+        for value in range(int(efRange_list[0]), int(efRange_list[2]), int(efRange_list[1])):
+            param_list.append(str(value))
+        # If the last value is not efRange_list[2], add efRange_list[2] to the list
+        if int(efRange_list[2]) != int(efRange_list[1]) * (len(efRange_list) - 1) + int(efRange_list[0]):
+            param_list.append(efRange_list[2])
     else:
         raise ValueError('Unknown parameter: {}'.format(param))
 
@@ -399,7 +410,61 @@ if search_mode < 0 and index_key[:4] != 'HNSW':
         gt_clusters = pickle.load(pkl_file)
         pkl_file.close()
 
-if search_mode < 0:
+if search_mode == -4:
+    if search_mode_param:
+        ps.set_index_parameters(index, search_mode_param)
+    if D_mode_param:
+        ps.set_index_parameters(index, D_mode_param)
+
+    for param in range(len(param_list)):
+        ps.set_index_parameters(index, 'efSearch={}'.format(param_list[param]))
+        print('efSearch={}'.format(param_list[param]))
+        for i in range(0, nq, batch_size):
+            query = xq[i:i+batch_size,:]
+            D, I = index.search(query, k)
+            # Print distance computations per query.
+            for j in range(batch_size):
+                print(int(D[j][0]))
+if search_mode == -3:
+    if search_mode_param:
+        ps.set_index_parameters(index, search_mode_param)
+    if D_mode_param:
+        ps.set_index_parameters(index, D_mode_param)
+
+    if k < 10:
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+    elif k < 100:
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+    else:
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+    for param in range(len(param_list)):
+        sys.stdout.flush()
+        ps.set_index_parameters(index, 'efSearch={}'.format(param_list[param]))
+        total_recall_at1 = 0.0
+        total_recall_at10 = 0.0
+        total_recall_at100 = 0.0
+        avg_dist_comps = 0
+        for i in range(0, nq, batch_size):
+            query = xq[i:i+batch_size,:]
+            D, I = index.search(query, k)
+            total_recall_at1 += compute_recall(I[:, :1],
+                gt[i:i+batch_size], 1)
+            total_recall_at10 += compute_recall(I[:, :10],
+                gt[i:i+batch_size], 10)
+            total_recall_at100 += compute_recall(I[:, :100],
+                gt[i:i+batch_size], 100)
+            for j in range(batch_size):
+                avg_dist_comps += int(D[j][0])
+                
+        tr1 = total_recall_at1 / float(nq)
+        tr10 = total_recall_at10 / float(nq)
+        tr100 = total_recall_at100 / float(nq)
+        avg_dist_comps = avg_dist_comps / float(nq)
+        print(param_list[param]+
+            ' '*(len(param_list[-1])+1-len(param_list[param]))+
+            '{:.4f} {:.4f} {:.4f} {}'.format(
+            round(tr1,4), round(tr10,4), round(tr100,4), round(avg_dist_comps)))
+elif search_mode < 0:
     if search_mode_param:
         ps.set_index_parameters(index, search_mode_param)
     sys.stdout.flush()

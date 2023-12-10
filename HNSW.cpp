@@ -557,7 +557,7 @@ void HNSW::add_with_locks(DistanceComputer& ptdis, int pt_level, int pt_id,
 
 int HNSW::search_from_candidates(
   DistanceComputer& qdis, int k,
-  idx_t *I, float *D,
+  idx_t *I, float *D, int D_mode,
   MinimaxHeap& candidates,
   VisitedTable& vt,
   int level, int nres_in) const
@@ -630,6 +630,11 @@ int HNSW::search_from_candidates(
         hnsw_stats.n2 ++;
       }
       hnsw_stats.n3 += ndis;
+    }
+
+    // If D_mode == 1, write the distance computations to D[0]
+    if (D_mode == 1) {
+      D[0] = ndis;
     }
   }
 
@@ -980,7 +985,7 @@ void HNSW::search_from_candidate_unbounded_ndis(
 }
 
 void HNSW::search(DistanceComputer& qdis, int k,
-                  idx_t *I, float *D,
+                  idx_t *I, float *D, int D_mode,
                   VisitedTable& vt) const
 {
   if (upper_beam == 1) {
@@ -999,7 +1004,7 @@ void HNSW::search(DistanceComputer& qdis, int k,
 
       candidates.push(nearest, d_nearest);
 
-      search_from_candidates(qdis, k, I, D, candidates, vt, 0);
+      search_from_candidates(qdis, k, I, D, D_mode, candidates, vt, 0);
     } else {
       std::priority_queue<Node> top_candidates =
         search_from_candidate_unbounded(Node(d_nearest, nearest),
@@ -1043,11 +1048,11 @@ void HNSW::search(DistanceComputer& qdis, int k,
       }
 
       if (level == 0) {
-        nres = search_from_candidates(qdis, k, I, D, candidates, vt, 0);
+        nres = search_from_candidates(qdis, k, I, D, D_mode, candidates, vt, 0);
       } else  {
         nres = search_from_candidates(
           qdis, candidates_size,
-          I_to_next.data(), D_to_next.data(),
+          I_to_next.data(), D_to_next.data(), D_mode,
           candidates, vt, level
         );
       }

@@ -589,6 +589,13 @@ void ParameterSpace::set_index_parameter (
         }
     }
 
+    if (name == "D_mode") {
+        if (DC (IndexHNSW)) {
+            ix->D_mode = int(val);
+            return;
+        }
+    }
+
     FAISS_THROW_FMT ("ParameterSpace::set_index_parameter:"
                      "could not set parameter %s",
                      name.c_str());

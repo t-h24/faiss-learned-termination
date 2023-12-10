@@ -266,8 +266,11 @@ void IndexHNSW::search (idx_t n, const float *x, idx_t k,
 
                 maxheap_heapify (k, simi, idxi);
                 if (search_mode == 0) { // fixed configuration
-                    hnsw.search(*dis, k, idxi, simi, vt);
-                    maxheap_reorder (k, simi, idxi);
+                    hnsw.search(*dis, k, idxi, simi, D_mode, vt);
+                    // Only reorder when we are actually writing nearest distances
+                    if (D_mode == 0) {
+                        maxheap_reorder (k, simi, idxi);
+                    }
                 } else {
                     hnsw.search_custom(*dis, k, idxi, simi, search_mode, i,
                         x + i * d, d, pred_max, vt);
@@ -402,7 +405,7 @@ void IndexHNSW::search_level_0(
                     candidates.push(cj, nearest_d[i * nprobe + j]);
 
                     nres = hnsw.search_from_candidates(
-                      *qdis, k, idxi, simi,
+                      *qdis, k, idxi, simi, D_mode,
                       candidates, vt, 0, nres
                     );
                 }
@@ -419,7 +422,7 @@ void IndexHNSW::search_level_0(
                     candidates.push(cj, nearest_d[i * nprobe + j]);
                 }
                 hnsw.search_from_candidates(
-                  *qdis, k, idxi, simi,
+                  *qdis, k, idxi, simi, D_mode,
                   candidates, vt, 0
                 );
 
@@ -1409,7 +1412,7 @@ void IndexHNSW2Level::search (idx_t n, const float *x, idx_t k,
                     maxheap_heapify (k, simi, idxi, simi, idxi, k);
 
                     hnsw.search_from_candidates(
-                      *dis, k, idxi, simi,
+                      *dis, k, idxi, simi, D_mode,
                       candidates, vt, 0, k
                     );
 

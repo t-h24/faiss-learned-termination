@@ -131,6 +131,11 @@ mkdir -p $RESULT_DIR
 # $run -mode 1 -batch 1000 -thread 10 -thresh 1260 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree1260_b1_find
 # $run -mode 1 -batch 1 -thresh 1260 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={317,478,548,630,772,1282,14899} > $RESULT_DIR/result_GIST1M_HNSW16_tree1260_b1
 
+# Print out average distance computations for a range of efSearches
+# $run -mode -3 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efRange={100,250,11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_dists
+# Print out each query's distance computations for a efSearch value
+# $run -mode -4 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efSearch={11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_blind_11853
+
 #######################################################################################################
 
 # ### IVF index with quantization

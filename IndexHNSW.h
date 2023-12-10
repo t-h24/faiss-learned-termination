@@ -83,6 +83,10 @@ struct IndexHNSW : Index {
     // This is used as an upper bound of the termination condition at online.
     long pred_max;
 
+    // 0 = Return the distances of the closest neighbors sorted.
+    // 1 = Return the number of distance computations taken.
+    int D_mode = 0;
+
     // the link strcuture
     HNSW hnsw;
 
