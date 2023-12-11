@@ -211,7 +211,7 @@ void IndexBinaryHNSW::search(idx_t n, const uint8_t *x, idx_t k,
       dis->set_query((float *)(x + i * code_size));
 
       maxheap_heapify(k, simi, idxi);
-      hnsw.search(*dis, k, idxi, simi, 0, vt);
+      hnsw.search(*dis, k, idxi, simi, NULL, vt);
       maxheap_reorder(k, simi, idxi);
     }
   }

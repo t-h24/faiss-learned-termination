@@ -266,10 +266,14 @@ void IndexHNSW::search (idx_t n, const float *x, idx_t k,
 
                 maxheap_heapify (k, simi, idxi);
                 if (search_mode == 0) { // fixed configuration
-                    hnsw.search(*dis, k, idxi, simi, D_mode, vt);
-                    // Only reorder when we are actually writing nearest distances
-                    if (D_mode == 0) {
-                        maxheap_reorder (k, simi, idxi);
+                    int distance_comps;
+                    hnsw.search(*dis, k, idxi, simi, &distance_comps, vt);
+                    maxheap_reorder (k, simi, idxi);
+
+                    // If D_mode = 1, overwrite the first distance with the 
+                    // number of distance computations.
+                    if (D_mode == 1) {
+                        simi[0] = distance_comps;
                     }
                 } else {
                     hnsw.search_custom(*dis, k, idxi, simi, search_mode, i,
@@ -405,7 +409,7 @@ void IndexHNSW::search_level_0(
                     candidates.push(cj, nearest_d[i * nprobe + j]);
 
                     nres = hnsw.search_from_candidates(
-                      *qdis, k, idxi, simi, D_mode,
+                      *qdis, k, idxi, simi, NULL,
                       candidates, vt, 0, nres
                     );
                 }
@@ -422,7 +426,7 @@ void IndexHNSW::search_level_0(
                     candidates.push(cj, nearest_d[i * nprobe + j]);
                 }
                 hnsw.search_from_candidates(
-                  *qdis, k, idxi, simi, D_mode,
+                  *qdis, k, idxi, simi, NULL,
                   candidates, vt, 0
                 );
 
@@ -1412,7 +1416,7 @@ void IndexHNSW2Level::search (idx_t n, const float *x, idx_t k,
                     maxheap_heapify (k, simi, idxi, simi, idxi, k);
 
                     hnsw.search_from_candidates(
-                      *dis, k, idxi, simi, D_mode,
+                      *dis, k, idxi, simi, NULL,
                       candidates, vt, 0, k
                     );
 

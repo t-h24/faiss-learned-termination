@@ -201,7 +201,7 @@ struct HNSW {
                       VisitedTable& vt);
 
   int search_from_candidates(DistanceComputer& qdis, int k,
-                             idx_t *I, float *D, int D_mode,
+                             idx_t *I, float *D, int* distance_comps,
                              MinimaxHeap& candidates,
                              VisitedTable &vt,
                              int level, int nres_in = 0) const;
@@ -247,7 +247,7 @@ struct HNSW {
 
   /// search interface
   void search(DistanceComputer& qdis, int k,
-              idx_t *I, float *D, int D_mode,
+              idx_t *I, float *D, int* distance_comps,
               VisitedTable& vt) const;
 
   // Customized search() for search_mode = 1, 2, 3.
