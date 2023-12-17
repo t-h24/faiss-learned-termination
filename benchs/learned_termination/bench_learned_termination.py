@@ -432,11 +432,11 @@ if search_mode == -3:
         ps.set_index_parameters(index, D_mode_param)
 
     if k < 10:
-        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp time(ms)')
     elif k < 100:
-        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp time(ms)')
     else:
-        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp')
+        print(' '*(len(param_list[-1])+1)+'R@1    R@10   R@100  avg_d_comp time(ms)')
     for param in range(len(param_list)):
         sys.stdout.flush()
         ps.set_index_parameters(index, 'efSearch={}'.format(param_list[param]))
@@ -444,9 +444,13 @@ if search_mode == -3:
         total_recall_at10 = 0.0
         total_recall_at100 = 0.0
         avg_dist_comps = 0
+        total_latency = 0.0
         for i in range(0, nq, batch_size):
             query = xq[i:i+batch_size,:]
+            t0 = time.time()
             D, I = index.search(query, k)
+            t1 = time.time()
+            total_latency += t1-t0
             total_recall_at1 += compute_recall(I[:, :1],
                 gt[i:i+batch_size], 1)
             total_recall_at10 += compute_recall(I[:, :10],
@@ -460,10 +464,12 @@ if search_mode == -3:
         tr10 = total_recall_at10 / float(nq)
         tr100 = total_recall_at100 / float(nq)
         avg_dist_comps = avg_dist_comps / float(nq)
+        tt = total_latency * 1000.0 / nq
         print(param_list[param]+
             ' '*(len(param_list[-1])+1-len(param_list[param]))+
-            '{:.4f} {:.4f} {:.4f} {}'.format(
-            round(tr1,4), round(tr10,4), round(tr100,4), round(avg_dist_comps)))
+            ('{:.4f} {:.4f} {:.4f} {}'+
+            ' '*(11-len(str(round(avg_dist_comps))))+'{:.4f}').format(
+            round(tr1,4), round(tr10,4), round(tr100,4), round(avg_dist_comps), round(tt,4)))
 elif search_mode < 0:
     if search_mode_param:
         ps.set_index_parameters(index, search_mode_param)
