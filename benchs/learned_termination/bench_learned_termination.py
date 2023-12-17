@@ -67,7 +67,7 @@ num_cluster = int(args['numcluster']) # number of cluster for IVF index
 num_thread = int(args['numthread'])
 # When to make prediction/generate training/testing data during search.
 # This is related to the intermediate search result features.
-pred_thresh = [int(x) for x in args['predthresh'].split(',')]
+pred_thresh = [int(x) if x.isdigit() else tuple(x.split('_')) for x in args['predthresh'].split(',')]
 # Binary search to find minimum fixed configuration (for baseline) or minimum
 # prediction multiplier (for early termination) to reach a certain accuracy
 # target.
@@ -301,8 +301,12 @@ index = get_populated_index()
 # Load the prediction model for HNSW index.
 if search_mode == 1 and index_key[:4] == 'HNSW':
     for t in pred_thresh:
-        modelname = '{}{}_{}_model_thresh{}_Log_Full.txt'.format(MODEL_DIR, dbname,
-            index_key, t)
+        if isinstance(t, int):
+            modelname = '{}{}_{}_model_thresh{}_Log_Full.txt'.format(MODEL_DIR, dbname,
+                index_key, t)
+        else:
+            modelname = '{}{}_{}_model_thresh{}_Log_{}.txt'.format(MODEL_DIR, dbname,
+                index_key, t[0], t[1])
         faiss.load_model(index, modelname)
 
 # Load the prediction model for IVF index.
@@ -319,7 +323,10 @@ if search_mode == 1 and index_key[:4] != 'HNSW':
 if search_mode != 0:
     faiss.load_thresh(index, -1)
     for t in pred_thresh:
-        faiss.load_thresh(index, t)
+        if isinstance(t, int):
+            faiss.load_thresh(index, t)
+        else:
+            faiss.load_thresh(index, int(t[0]))
 
 ps = faiss.ParameterSpace()
 ps.initialize(index)

@@ -904,18 +904,21 @@ void HNSW::search_from_candidate_unbounded_pred(
     // timestamp, make a prediction.
     if (thresh_idx < pred_thresh.size() && ndis >= pred_thresh[thresh_idx]) {
       // double t0 = getmillisecs();
-      double * input = new double[d+5];
+      bool query_only = (boosters[thresh_idx])->MaxFeatureIdx() + 1 == d;
+      double * input = query_only ? new double[d] : new double[d+5];
       double * output = new double[1];
       for (idx_t i = 0; i < d; i++) {
         input[i] = (double)(x[i]); // the query vector
       }
-      input[d] = (double)(d_nearest);
-      faiss::maxheap_reorder (k, D, I);
-      input[d+1] = D[0]; // top 1 intermediate search result
-      input[d+2] = D[9]; // top 10 intermediate search result
-      faiss::maxheap_heapify (k, D, I, D, I, k);
-      input[d+3] = input[d+1]/(d_nearest+eps);
-      input[d+4] = input[d+2]/(d_nearest+eps);
+      if (!query_only) {
+        input[d] = (double)(d_nearest);
+        faiss::maxheap_reorder (k, D, I);
+        input[d+1] = D[0]; // top 1 intermediate search result
+        input[d+2] = D[9]; // top 10 intermediate search result
+        faiss::maxheap_heapify (k, D, I, D, I, k);
+        input[d+3] = input[d+1]/(d_nearest+eps);
+        input[d+4] = input[d+2]/(d_nearest+eps);
+      }
       // Make prediction.
       (boosters[thresh_idx])->PredictRaw(input, output, &tree_early_stop);
       term_cond = std::min(pred_max, (long)(ceil(pow(2.0,
