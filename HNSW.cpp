@@ -987,6 +987,73 @@ void HNSW::search_from_candidate_unbounded_ndis(
   }
 }
 
+// For search_mode = 4.
+// Baseline HNSW run with adjustable efSearch.
+void HNSW::search_from_candidate_baseline(
+  const Node& node,
+  DistanceComputer& qdis,
+  idx_t *I, float *D, int k,
+  VisitedTable *vt) const
+{
+  int nres = 0; // number of valid results in the heap
+  idx_t ndis = 0; // number of distance evaluations
+  float d_Cand, d_Beam, d_Neigh, d_Inner_Beam;
+  storage_idx_t v_Cand, v_Beam, v_Neigh, v_Inner_Beam;
+  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> candidates;
+  std::priority_queue<Node> beam;
+  candidates.push(node);
+  beam.push(node);
+  vt->set(node.second);
+
+  while (!candidates.empty()) {
+    std::tie(d_Cand, v_Cand) = candidates.top();
+    candidates.pop();
+    
+    std::tie(d_Beam, v_Beam) = beam.top();
+    
+    if (d_Cand > d_Beam)
+      break;
+    
+    size_t begin, end;
+    neighbor_range(v_Cand, 0, &begin, &end);
+
+    for (size_t j = begin; j < end; ++j) {
+      v_Neigh = neighbors[j];
+      if (v_Neigh < 0) {
+        break;
+      }
+      if (vt->get(v_Neigh)) {
+        continue;
+      }
+      vt->set(v_Neigh);
+      
+      std::tie(d_Inner_Beam, v_Inner_Beam) = beam.top();
+      
+      d_Neigh = qdis(v_Neigh);
+      ++ndis;
+      
+      if (d_Neigh < d_Inner_Beam || beam.size() < efSearch) {
+        candidates.emplace(d_Neigh, v_Neigh);
+        beam.emplace(d_Neigh, v_Neigh);
+      
+        if (beam.size() > efSearch)
+          beam.pop();
+      }
+    }
+  }
+
+  // Pop beam until it equals k
+  while(beam.size() > k)
+    beam.pop();
+
+  while (!beam.empty()) {
+    std::tie(d_Beam, v_Beam) = beam.top();
+    beam.pop();
+    
+    faiss::maxheap_push(++nres, D, I, d_Beam, v_Beam);
+  }
+}
+
 void HNSW::search(DistanceComputer& qdis, int k,
                   idx_t *I, float *D, int* distance_comps,
                   VisitedTable& vt) const
@@ -1086,6 +1153,9 @@ void HNSW::search_custom(DistanceComputer& qdis, int k,
       qdis, I, D, k, x, d, pred_max, &vt);
   } else if (search_mode == 3) {
     search_from_candidate_unbounded_ndis(Node(d_nearest, nearest),
+      qdis, I, D, k, &vt);
+  } else if (search_mode == 4) {
+    search_from_candidate_baseline(Node(d_nearest, nearest),
       qdis, I, D, k, &vt);
   }
   vt.advance();

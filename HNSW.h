@@ -245,6 +245,15 @@ struct HNSW {
     VisitedTable *vt
   ) const;
 
+  // For search_mode = 4.
+  // Baseline HNSW run with adjustable efSearch.
+  void search_from_candidate_baseline(
+    const Node& node,
+    DistanceComputer& qdis,
+    idx_t *I, float *D, int k,
+    VisitedTable *vt
+  ) const;
+
   /// search interface
   void search(DistanceComputer& qdis, int k,
               idx_t *I, float *D, int* distance_comps,
