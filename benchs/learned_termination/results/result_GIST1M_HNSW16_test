@@ -1,0 +1,4 @@
+Preparing dataset GIST1M
+sizes: B (1000000, 960) Q (1000, 960) T (500000, 960) gt 1000
+loading populated_index/GIST1M_HNSW16_populated.index
+ParameterSpace initialize done

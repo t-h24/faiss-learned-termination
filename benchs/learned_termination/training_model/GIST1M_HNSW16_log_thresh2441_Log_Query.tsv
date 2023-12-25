@@ -1,0 +1,28 @@
+training count: 499219 valid rows out of 500000 total
+testing count: 1000 total rows
+Train time	34.56686091423035
+Calculate feature importance...
+['F0_query']	0.9999999999999988
+Train ground truth max	696227.25
+Train ground truth min	1.0
+Train ground truth avg	1350.2513274452144
+Train ground truth missing	0
+Train rmse	7404.226194677368
+Train mae	1120.688751613668
+Train mape	1.5946155804816255
+Test ground truth max	118277.0
+Test ground truth min	3.0
+Test ground truth avg	1241.1241241241241
+Test ground truth missing	1
+Test rmse	4877.12039859802
+Test mae	1011.406560180321
+Test mape	1.5525931379705622
+multiplier P90.0: 2.801154713972552
+multiplier P95.0: 6.7607542249950905
+multiplier P96.0: 8.206458422334155
+multiplier P97.0: 9.615368949623877
+multiplier P98.0: 12.703953793136161
+multiplier P99.0: 16.86761821381579
+multiplier P99.9: 120.93563941661372
+fixed_config_perf =	[[2446.0, 3847.0, 4342.0, 5361.0, 8113.0, 12660.0, 118277.0], [0.9, 0.95, 0.96, 0.97, 0.98, 0.99, 0.999]]
+early_termination_perf = 	[[1347.73, 3252.12, 3947.442, 4625.05, 6110.528, 8113.06, 58165.089], [0.812, 0.944, 0.958, 0.969, 0.98, 0.99, 0.999]]

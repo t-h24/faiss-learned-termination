@@ -1,0 +1,114 @@
+Preparing dataset GIST1M
+sizes: B (1000000, 960) Q (1000, 960) T (500000, 960) gt 1000
+loading populated_index/GIST1M_HNSW16_populated.index
+ParameterSpace initialize done
+efSearch=10000, accuracy = 0.997
+efSearch=5000, accuracy = 0.995
+efSearch=2500, accuracy = 0.992
+efSearch=1250, accuracy = 0.978
+efSearch=625, accuracy = 0.935
+efSearch=312, accuracy = 0.831
+efSearch=156, accuracy = 0.66
+efSearch=78, accuracy = 0.432
+efSearch=117, accuracy = 0.558
+efSearch=97, accuracy = 0.513
+efSearch=87, accuracy = 0.476
+efSearch=92, accuracy = 0.493
+efSearch=94, accuracy = 0.502
+efSearch=93, accuracy = 0.499
+To reach recall target 0.5 the min. config/multiplier is 94.
+efSearch=137, accuracy = 0.617
+efSearch=127, accuracy = 0.592
+efSearch=132, accuracy = 0.602
+efSearch=129, accuracy = 0.6
+efSearch=128, accuracy = 0.594
+To reach recall target 0.6 the min. config/multiplier is 129.
+efSearch=234, accuracy = 0.763
+efSearch=195, accuracy = 0.726
+efSearch=175, accuracy = 0.691
+efSearch=185, accuracy = 0.713
+efSearch=180, accuracy = 0.703
+efSearch=177, accuracy = 0.696
+efSearch=178, accuracy = 0.699
+efSearch=179, accuracy = 0.701
+To reach recall target 0.7 the min. config/multiplier is 179.
+efSearch=273, accuracy = 0.809
+efSearch=253, accuracy = 0.787
+efSearch=263, accuracy = 0.797
+efSearch=268, accuracy = 0.804
+efSearch=265, accuracy = 0.801
+efSearch=264, accuracy = 0.799
+To reach recall target 0.8 the min. config/multiplier is 265.
+efSearch=469, accuracy = 0.904
+efSearch=390, accuracy = 0.875
+efSearch=429, accuracy = 0.886
+efSearch=449, accuracy = 0.896
+efSearch=459, accuracy = 0.9
+efSearch=454, accuracy = 0.898
+efSearch=456, accuracy = 0.899
+efSearch=457, accuracy = 0.899
+efSearch=458, accuracy = 0.899
+To reach recall target 0.9 the min. config/multiplier is 459.
+efSearch=938, accuracy = 0.967
+efSearch=781, accuracy = 0.953
+efSearch=703, accuracy = 0.949
+efSearch=742, accuracy = 0.952
+efSearch=722, accuracy = 0.95
+efSearch=712, accuracy = 0.949
+efSearch=717, accuracy = 0.95
+efSearch=714, accuracy = 0.95
+efSearch=713, accuracy = 0.95
+To reach recall target 0.95 the min. config/multiplier is 713.
+efSearch=860, accuracy = 0.964
+efSearch=820, accuracy = 0.958
+efSearch=840, accuracy = 0.961
+efSearch=830, accuracy = 0.959
+efSearch=835, accuracy = 0.96
+efSearch=832, accuracy = 0.96
+efSearch=831, accuracy = 0.96
+To reach recall target 0.96 the min. config/multiplier is 831.
+efSearch=1094, accuracy = 0.976
+efSearch=1016, accuracy = 0.97
+efSearch=977, accuracy = 0.969
+efSearch=996, accuracy = 0.97
+efSearch=986, accuracy = 0.97
+efSearch=981, accuracy = 0.97
+efSearch=979, accuracy = 0.969
+efSearch=980, accuracy = 0.97
+To reach recall target 0.97 the min. config/multiplier is 980.
+efSearch=1875, accuracy = 0.992
+efSearch=1562, accuracy = 0.988
+efSearch=1406, accuracy = 0.983
+efSearch=1328, accuracy = 0.982
+efSearch=1289, accuracy = 0.981
+efSearch=1269, accuracy = 0.979
+efSearch=1279, accuracy = 0.98
+efSearch=1274, accuracy = 0.98
+efSearch=1271, accuracy = 0.98
+efSearch=1270, accuracy = 0.98
+To reach recall target 0.98 the min. config/multiplier is 1270.
+efSearch=1719, accuracy = 0.991
+efSearch=1640, accuracy = 0.989
+efSearch=1679, accuracy = 0.989
+efSearch=1699, accuracy = 0.991
+efSearch=1689, accuracy = 0.991
+efSearch=1684, accuracy = 0.991
+efSearch=1681, accuracy = 0.989
+efSearch=1682, accuracy = 0.99
+To reach recall target 0.99 the min. config/multiplier is 1682.
+efSearch=15000, accuracy = 0.999
+efSearch=12500, accuracy = 0.999
+efSearch=11250, accuracy = 0.997
+efSearch=11875, accuracy = 0.998
+efSearch=12187, accuracy = 0.999
+efSearch=12031, accuracy = 0.998
+efSearch=12109, accuracy = 0.999
+efSearch=12070, accuracy = 0.998
+efSearch=12089, accuracy = 0.998
+efSearch=12099, accuracy = 0.999
+efSearch=12094, accuracy = 0.999
+efSearch=12091, accuracy = 0.998
+efSearch=12092, accuracy = 0.998
+efSearch=12093, accuracy = 0.999
+To reach recall target 0.999 the min. config/multiplier is 12093.
+List of min. config/multiplier = [94, 129, 179, 265, 459, 713, 831, 980, 1270, 1682, 12093]

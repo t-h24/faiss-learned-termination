@@ -1,0 +1,100 @@
+Preparing dataset GIST1M
+sizes: B (1000000, 960) Q (1000, 960) T (500000, 960) gt 1000
+loading populated_index/GIST1M_HNSW16_populated.index
+ParameterSpace initialize done
+efSearch=10000, accuracy = 0.997
+efSearch=5000, accuracy = 0.995
+efSearch=2500, accuracy = 0.993
+efSearch=1250, accuracy = 0.988
+efSearch=625, accuracy = 0.968
+efSearch=312, accuracy = 0.897
+efSearch=156, accuracy = 0.79
+efSearch=78, accuracy = 0.717
+efSearch=39, accuracy = 0.702
+efSearch=19, accuracy = 0.7
+efSearch=9, accuracy = 0.7
+efSearch=4, accuracy = 0.7
+efSearch=2, accuracy = 0.7
+efSearch=1, accuracy = 0.7
+To reach recall target 0.5 the min. config/multiplier is 1.
+efSearch=1, accuracy = 0.7
+To reach recall target 0.6 the min. config/multiplier is 1.
+efSearch=1, accuracy = 0.7
+To reach recall target 0.7 the min. config/multiplier is 1.
+efSearch=234, accuracy = 0.845
+efSearch=195, accuracy = 0.821
+efSearch=175, accuracy = 0.803
+efSearch=165, accuracy = 0.797
+efSearch=170, accuracy = 0.802
+efSearch=167, accuracy = 0.8
+efSearch=166, accuracy = 0.799
+To reach recall target 0.8 the min. config/multiplier is 167.
+efSearch=469, accuracy = 0.937
+efSearch=390, accuracy = 0.915
+efSearch=351, accuracy = 0.905
+efSearch=331, accuracy = 0.902
+efSearch=321, accuracy = 0.902
+efSearch=316, accuracy = 0.898
+efSearch=318, accuracy = 0.899
+efSearch=319, accuracy = 0.9
+To reach recall target 0.9 the min. config/multiplier is 319.
+efSearch=547, accuracy = 0.952
+efSearch=508, accuracy = 0.947
+efSearch=527, accuracy = 0.95
+efSearch=517, accuracy = 0.948
+efSearch=522, accuracy = 0.948
+efSearch=524, accuracy = 0.949
+efSearch=525, accuracy = 0.949
+efSearch=526, accuracy = 0.95
+To reach recall target 0.95 the min. config/multiplier is 526.
+efSearch=586, accuracy = 0.956
+efSearch=606, accuracy = 0.963
+efSearch=596, accuracy = 0.963
+efSearch=591, accuracy = 0.962
+efSearch=588, accuracy = 0.958
+efSearch=589, accuracy = 0.959
+efSearch=590, accuracy = 0.961
+To reach recall target 0.96 the min. config/multiplier is 590.
+efSearch=938, accuracy = 0.986
+efSearch=781, accuracy = 0.983
+efSearch=703, accuracy = 0.974
+efSearch=664, accuracy = 0.97
+efSearch=644, accuracy = 0.969
+efSearch=654, accuracy = 0.97
+efSearch=649, accuracy = 0.97
+efSearch=646, accuracy = 0.97
+efSearch=645, accuracy = 0.97
+To reach recall target 0.97 the min. config/multiplier is 645.
+efSearch=742, accuracy = 0.98
+efSearch=722, accuracy = 0.978
+efSearch=732, accuracy = 0.98
+efSearch=727, accuracy = 0.98
+efSearch=724, accuracy = 0.98
+efSearch=723, accuracy = 0.98
+To reach recall target 0.98 the min. config/multiplier is 723.
+efSearch=1875, accuracy = 0.992
+efSearch=1562, accuracy = 0.992
+efSearch=1406, accuracy = 0.992
+efSearch=1328, accuracy = 0.991
+efSearch=1289, accuracy = 0.989
+efSearch=1308, accuracy = 0.99
+efSearch=1298, accuracy = 0.99
+efSearch=1293, accuracy = 0.989
+efSearch=1295, accuracy = 0.99
+efSearch=1294, accuracy = 0.989
+To reach recall target 0.99 the min. config/multiplier is 1295.
+efSearch=15000, accuracy = 0.998
+efSearch=17500, accuracy = 0.999
+efSearch=16250, accuracy = 0.998
+efSearch=16875, accuracy = 0.999
+efSearch=16562, accuracy = 0.999
+efSearch=16406, accuracy = 0.998
+efSearch=16484, accuracy = 0.999
+efSearch=16445, accuracy = 0.999
+efSearch=16425, accuracy = 0.998
+efSearch=16435, accuracy = 0.998
+efSearch=16440, accuracy = 0.999
+efSearch=16437, accuracy = 0.998
+efSearch=16438, accuracy = 0.999
+To reach recall target 0.999 the min. config/multiplier is 16438.
+List of min. config/multiplier = [1, 1, 1, 167, 319, 526, 590, 645, 723, 1295, 16438]
