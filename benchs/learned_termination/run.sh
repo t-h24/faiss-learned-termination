@@ -128,13 +128,38 @@ mkdir -p $RESULT_DIR
 # # 5) Using the training and testing data from 4), train the LightGBM decision tree models.
 # $train -train 1 -thresh 381,554,801,1260,2441 -db GIST1M -idx HNSW16
 # # 6) Based on the performance estimation in the training log in 5), choose the -thresh and prediction model, and evaluate the performance. The pred_max is the Train ground truth max from the training log in 5).
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 381 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree381_b1_find
+# $run -mode 1 -batch 1 -thresh 381 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={1,78,129,203,374,540,636,744,870,1374,11824} > $RESULT_DIR/result_GIST1M_HNSW16_tree381_b1
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 554 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree554_b1_find
+# $run -mode 1 -batch 1 -thresh 554 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={115,198,350,560,597,687,813,1271,13767} > $RESULT_DIR/result_GIST1M_HNSW16_tree554_b1
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 801 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree801_b1_find
+# $run -mode 1 -batch 1 -thresh 801 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={167,319,526,590,645,723,1295,16438} > $RESULT_DIR/result_GIST1M_HNSW16_tree801_b1
+
 # $run -mode 1 -batch 1000 -thread 10 -thresh 1260 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree1260_b1_find
-# $run -mode 1 -batch 1 -thresh 1260 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={317,478,548,630,772,1282,14899} > $RESULT_DIR/result_GIST1M_HNSW16_tree1260_b1
+# $run -mode 1 -batch 1 -thresh 1260 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={303,473,553,636,793,1484,15084} > $RESULT_DIR/result_GIST1M_HNSW16_tree1260_b1
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 2441 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_tree2441_b1_find
+# $run -mode 1 -batch 1 -thresh 2441 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={472,542,673,833,1225,13706} > $RESULT_DIR/result_GIST1M_HNSW16_tree2441_b1
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 381,554,801,1260,2441 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_treecomb_b1_find
+# $run -mode 1 -batch 1 -thresh 381,554,801,1260,2441 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={1,79,128,217,360,539,589,688,919,1229,13706} > $RESULT_DIR/result_GIST1M_HNSW16_treecomb_b1
+
+# $run -mode 1 -batch 1000 -thread 10 -thresh 0_Query -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228 > $RESULT_DIR/result_GIST1M_HNSW16_treequery0_b1_find
+# $run -mode 1 -batch 1 -thresh 0_Query -db GIST1M -idx HNSW16 -param search_mode=2,pred_max=696228,efSearch={94,129,179,265,459,713,831,980,1270,1682,12093} > $RESULT_DIR/result_GIST1M_HNSW16_treequery0_b1
+
+# Compute the real baseline using code similar to the paper's implementation of HNSW.
+# $run -mode 0 -batch 1000 -thread 10 -bsearch 1,1,20000 -db GIST1M -idx HNSW16 -param search_mode=4 > $RESULT_DIR/result_GIST1M_HNSW16_naivefixed_b1_find
+# $run -mode 0 -batch 1 -db GIST1M -idx HNSW16 -param search_mode=4,efSearch={11,16,27,47,96,160,196,259,370,686,11852} > $RESULT_DIR/result_GIST1M_HNSW16_naivefixed_b1
 
 # Print out average distance computations for a range of efSearches
-# $run -mode -3 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efRange={100,250,11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_dists
+# $run -mode -3 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efRange={100,250,11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_dists_old
+# $run -mode -3 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=4,efRange={100,250,11852} > $RESULT_DIR/result_GIST1M_HNSW16_ef_dists_fixedalg
 # Print out each query's distance computations for a efSearch value
-# $run -mode -4 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efSearch={11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_blind_11853
+# $run -mode -4 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=0,efSearch={11853} > $RESULT_DIR/result_GIST1M_HNSW16_ef_blind_11853_old
+# $run -mode -4 -batch 1 -db GIST1M -idx HNSW16 -param D_mode=1,search_mode=4,efSearch={11852} > $RESULT_DIR/result_GIST1M_HNSW16_ef_blind_11852_fixedalg
 
 #######################################################################################################
 
