@@ -9,9 +9,6 @@ output="$1"
 input_1="${output}_1"
 input_2="${output}_2"
 
-# Create output file
-touch "$output"
-
 # Combine the two files
 cat "$input_1" "$input_2" > "$output"
 
