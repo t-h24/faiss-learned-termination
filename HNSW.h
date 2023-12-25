@@ -251,6 +251,7 @@ struct HNSW {
     const Node& node,
     DistanceComputer& qdis,
     idx_t *I, float *D, int k,
+    int* distance_comps,
     VisitedTable *vt
   ) const;
 
@@ -261,7 +262,7 @@ struct HNSW {
 
   // Customized search() for search_mode = 1, 2, 3.
   void search_custom(DistanceComputer& qdis, int k,
-                     idx_t *I, float *D,
+                     idx_t *I, float *D, int* distance_comps,
                      int search_mode, idx_t gt_idx,
                      const float *x, size_t d, long pred_max,
                      VisitedTable& vt) const;

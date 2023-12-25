@@ -993,6 +993,7 @@ void HNSW::search_from_candidate_baseline(
   const Node& node,
   DistanceComputer& qdis,
   idx_t *I, float *D, int k,
+  int* distance_comps,
   VisitedTable *vt) const
 {
   int nres = 0; // number of valid results in the heap
@@ -1051,6 +1052,11 @@ void HNSW::search_from_candidate_baseline(
     beam.pop();
     
     faiss::maxheap_push(++nres, D, I, d_Beam, v_Beam);
+  }
+
+  // Write the distance computations to distance_comps
+  if (distance_comps != NULL) {
+    *distance_comps = ndis;
   }
 }
 
@@ -1133,7 +1139,7 @@ void HNSW::search(DistanceComputer& qdis, int k,
 
 // Customized search() for search_mode = 1, 2, 3.
 void HNSW::search_custom(DistanceComputer& qdis, int k,
-                         idx_t *I, float *D,
+                         idx_t *I, float *D, int* distance_comps,
                          int search_mode, idx_t gt_idx,
                          const float *x, size_t d, long pred_max,
                          VisitedTable& vt) const
@@ -1156,7 +1162,7 @@ void HNSW::search_custom(DistanceComputer& qdis, int k,
       qdis, I, D, k, &vt);
   } else if (search_mode == 4) {
     search_from_candidate_baseline(Node(d_nearest, nearest),
-      qdis, I, D, k, &vt);
+      qdis, I, D, k, distance_comps, &vt);
   }
   vt.advance();
 }

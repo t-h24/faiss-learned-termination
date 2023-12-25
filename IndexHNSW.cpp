@@ -265,8 +265,8 @@ void IndexHNSW::search (idx_t n, const float *x, idx_t k,
                 dis->set_query(x + i * d);
 
                 maxheap_heapify (k, simi, idxi);
+                int distance_comps;
                 if (search_mode == 0) { // fixed configuration
-                    int distance_comps;
                     hnsw.search(*dis, k, idxi, simi, &distance_comps, vt);
                     maxheap_reorder (k, simi, idxi);
 
@@ -276,13 +276,19 @@ void IndexHNSW::search (idx_t n, const float *x, idx_t k,
                         simi[0] = distance_comps;
                     }
                 } else {
-                    hnsw.search_custom(*dis, k, idxi, simi, search_mode, i,
+                    hnsw.search_custom(*dis, k, idxi, simi, &distance_comps, search_mode, i,
                         x + i * d, d, pred_max, vt);
                     // No need to reorder when search_mode = 1 since we
                     // overwrite the actual search result distances in simi by
                     // the features that we need as training data.
                     if (search_mode != 1) { 
                         maxheap_reorder (k, simi, idxi);
+                    }
+
+                    // If D_mode = 1, overwrite the first distance with the
+                    // number of distance computations.
+                    if (D_mode == 1) {
+                        simi[0] = distance_comps;
                     }
                 }                
 
